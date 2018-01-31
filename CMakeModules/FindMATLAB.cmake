@@ -77,7 +77,7 @@ if (NOT MATLAB_ROOT)
     # now go and look in more places
     if(WIN32)
       # Search for a version of Matlab available, starting from the most modern one to older versions
-      foreach(MATVER "8.5" "8.4" "8.3" "8.2" "8.1" "8.0" "7.16" "7.15" "7.14" "7.13" "7.12" "7.11" "7.10" "7.9" "7.8" "7.7" "7.6" "7.5" "7.4")
+      foreach(MATVER "9.3" "9.2" "9.1" "9.0" "8.6" "8.5" "8.4" "8.3" "8.2" "8.1" "8.0" "7.16" "7.15" "7.14" "7.13" "7.12" "7.11" "7.10" "7.9" "7.8" "7.7" "7.6" "7.5" "7.4")
         if((NOT DEFINED MATLAB_ROOT)
             OR ("${MATLAB_ROOT}" STREQUAL "")
             OR ("${MATLAB_ROOT}" STREQUAL "/registry"))
@@ -91,7 +91,7 @@ if (NOT MATLAB_ROOT)
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")   # Check if this is a Mac
       # we look in the applications folder
       # Search for a version of Matlab available, starting from the most modern one to older versions
-      foreach(MATVER "R2015b" "R2015a" "R2014b" "R2014a" "R2013b" "R2013a" "R2012b" "R2012a" "R2011b" "R2011a" "R2010b" "R2010a" "R2009b" "R2009a" "R2008b")
+      foreach(MATVER "R2017b" "R2017a" "R2016b" "R2016a" "R2015b" "R2015a" "R2014b" "R2014a" "R2013b" "R2013a" "R2012b" "R2012a" "R2011b" "R2011a" "R2010b" "R2010a" "R2009b" "R2009a" "R2008b")
         if((NOT DEFINED MATLAB_ROOT) OR ("${MATLAB_ROOT}" STREQUAL ""))
           if(EXISTS /Applications/MATLAB_${MATVER}.app)
             set(MATLAB_ROOT /Applications/MATLAB_${MATVER}.app)
