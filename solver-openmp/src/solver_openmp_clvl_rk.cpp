@@ -141,7 +141,7 @@ solver_openmp_clvl_rk<num_lvl>::solver_openmp_clvl_rk
 
         /* factor for magnetic field update */
         sc.M_CH = scen->get_timestep_size()/
-            (MU0 * mat->get_rel_permeability() * scen->get_gridpoint_size());
+            (MU0 * mat->get_rel_permeability() * scen->get_gridpoint_size(0));
 
         /* convert loss term to conductivity */
         sc.sigma = sqrt(EPS0 * mat->get_rel_permittivity()/
@@ -277,7 +277,7 @@ solver_openmp_clvl_rk<num_lvl>::solver_openmp_clvl_rk
         }
 
         /* simulation settings */
-        sc.d_x_inv = 1.0/scen->get_gridpoint_size();
+        sc.d_x_inv = 1.0/scen->get_gridpoint_size(0);
         sc.d_t = scen->get_timestep_size();
 
         m_sim_consts.push_back(sc);
@@ -296,11 +296,11 @@ solver_openmp_clvl_rk<num_lvl>::solver_openmp_clvl_rk
     m_p = new real*[P];
     m_mat_indices = new unsigned int*[P];
 
-    unsigned int *l_mat_indices = new unsigned int[scen->get_num_gridpoints()];
+    unsigned int *l_mat_indices = new unsigned int[scen->get_num_gridpoints(0)];
 
-    for (unsigned int i = 0; i < scen->get_num_gridpoints(); i++) {
+    for (unsigned int i = 0; i < scen->get_num_gridpoints(0); i++) {
         unsigned int mat_idx = 0;
-        real x = i * scen->get_gridpoint_size();
+        real x = i * scen->get_gridpoint_size(0);
 
         for (const auto& reg : dev->get_regions()) {
             if ((x >= reg->get_start()) && (x <= reg->get_end())) {
@@ -349,7 +349,7 @@ solver_openmp_clvl_rk<num_lvl>::solver_openmp_clvl_rk
     for (const auto& src : scen->get_sources()) {
         sim_source s;
         s.type = src->get_type();
-        s.x_idx = src->get_position()/scen->get_gridpoint_size();
+        s.x_idx = src->get_position()/scen->get_gridpoint_size(0);
         s.data_base_idx = base_idx;
         m_sim_sources.push_back(s);
 
@@ -362,9 +362,9 @@ solver_openmp_clvl_rk<num_lvl>::solver_openmp_clvl_rk
         base_idx += scen->get_num_timesteps();
     }
 
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
-    unsigned int chunk_base = m_scenario->get_num_gridpoints()/P;
-    unsigned int chunk_rem = m_scenario->get_num_gridpoints() % P;
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
+    unsigned int chunk_base = m_scenario->get_num_gridpoints(0)/P;
+    unsigned int chunk_rem = m_scenario->get_num_gridpoints(0) % P;
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
 
 #ifndef XEON_PHI_OFFLOAD
@@ -490,7 +490,7 @@ solver_openmp_clvl_rk<num_lvl>::~solver_openmp_clvl_rk()
     unsigned int P = omp_get_max_threads();
     unsigned int num_sources = m_sim_sources.size();
     unsigned int num_copy = m_copy_list.size();
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
 
 
@@ -686,9 +686,9 @@ void
 solver_openmp_clvl_rk<num_lvl>::run() const
 {
     unsigned int P = omp_get_max_threads();
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
-    unsigned int chunk_base = m_scenario->get_num_gridpoints()/P;
-    unsigned int chunk_rem = m_scenario->get_num_gridpoints() % P;
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
+    unsigned int chunk_base = m_scenario->get_num_gridpoints(0)/P;
+    unsigned int chunk_rem = m_scenario->get_num_gridpoints(0) % P;
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
     unsigned int num_sources = m_sim_sources.size();
     unsigned int num_copy = m_copy_list.size();

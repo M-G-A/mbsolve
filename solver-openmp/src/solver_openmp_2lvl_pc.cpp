@@ -52,7 +52,7 @@ solver_int(dev, scen)
     /* determine simulation settings */
     init_fdtd_simulation(dev, scen, 0.5);
 
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
 
     /* set up simulaton constants */
@@ -104,7 +104,7 @@ solver_int(dev, scen)
     for (const auto& src : scen->get_sources()) {
         sim_source s;
         s.type = src->get_type();
-        s.x_idx = src->get_position()/scen->get_gridpoint_size();
+        s.x_idx = src->get_position()/scen->get_gridpoint_size(0);
         s.data_base_idx = base_idx;
         m_sim_sources.push_back(s);
 
@@ -118,10 +118,10 @@ solver_int(dev, scen)
     }
 
     /* determine material indices of each grid point */
-    unsigned int *l_mat_indices = new unsigned int[scen->get_num_gridpoints()];
-    for (unsigned int i = 0; i < scen->get_num_gridpoints(); i++) {
+    unsigned int *l_mat_indices = new unsigned int[scen->get_num_gridpoints(0)];
+    for (unsigned int i = 0; i < scen->get_num_gridpoints(0); i++) {
         unsigned int mat_idx = 0;
-        real x = i * scen->get_gridpoint_size();
+        real x = i * scen->get_gridpoint_size(0);
 
         for (const auto& reg : dev->get_regions()) {
             if ((x >= reg->get_start()) && (x <= reg->get_end())) {
@@ -197,7 +197,7 @@ solver_int(dev, scen)
 solver_openmp_2lvl_pc::~solver_openmp_2lvl_pc()
 {
 #ifdef XEON_PHI_OFFLOAD
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
     unsigned int num_sources = m_sim_sources.size();
 
@@ -237,7 +237,7 @@ solver_openmp_2lvl_pc::get_name() const
 void
 solver_openmp_2lvl_pc::run() const
 {
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
     unsigned int num_sources = m_sim_sources.size();
     unsigned int num_copy = m_copy_list.size();

@@ -64,13 +64,13 @@ writer_matlab::write(const std::string& file,
     matPutVariable(pmat, "TimeStepSize", t);
     mxDestroyArray(t);
 
-    t = mxCreateDoubleScalar(scen->get_gridpoint_size());
+    t = mxCreateDoubleScalar(scen->get_gridpoint_size(0));
     matPutVariable(pmat, "GridPointSize", t);
     mxDestroyArray(t);
 
     /* put device data */
     t = mxCreateDoubleScalar(dev->get_length());
-    matPutVariable(pmat, "XDim", t);
+    matPutVariable(pmat, "DeviceDimension", t);
     mxDestroyArray(t);
 
     /* put result data */

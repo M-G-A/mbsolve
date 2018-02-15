@@ -156,10 +156,10 @@ public:
         if (rec->get_position() < 0.0) {
             /* copy complete grid */
             m_dev.m_position_idx = 0;
-            m_dev.m_cols = scen->get_num_gridpoints();
+            m_dev.m_cols = scen->get_num_gridpoints(0);
         } else {
             m_dev.m_position_idx = std::round(rec->get_position()/
-                                              scen->get_gridpoint_size());
+                                              scen->get_gridpoint_size(0));
             m_dev.m_cols = 1;
         }
 

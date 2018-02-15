@@ -109,19 +109,19 @@ solver_int(dev, scen)
 
     /* allocate data arrays */
     m_d = (Eigen::Vector3d *) mb_aligned_alloc(sizeof(Eigen::Vector3d) *
-                                               scen->get_num_gridpoints());
+                                               scen->get_num_gridpoints(0));
     m_h = (real *) mb_aligned_alloc(sizeof(real) *
-                                    (scen->get_num_gridpoints() + 1));
-    m_e = (real *) mb_aligned_alloc(sizeof(real) * scen->get_num_gridpoints());
+                                    (scen->get_num_gridpoints(0) + 1));
+    m_e = (real *) mb_aligned_alloc(sizeof(real) * scen->get_num_gridpoints(0));
     m_mat_indices = (unsigned int *)
-        mb_aligned_alloc(sizeof(unsigned int) * scen->get_num_gridpoints());
+        mb_aligned_alloc(sizeof(unsigned int) * scen->get_num_gridpoints(0));
 
     /* set up indices array and initialize data arrays */
 #pragma omp parallel for schedule(static)
-    for (unsigned int i = 0; i < scen->get_num_gridpoints(); i++) {
+    for (unsigned int i = 0; i < scen->get_num_gridpoints(0); i++) {
         /* determine index of material */
         int idx = -1;
-        real x = i * scen->get_gridpoint_size();
+        real x = i * scen->get_gridpoint_size(0);
         for (const auto& reg : dev->get_regions()) {
             if ((x >= reg->get_start()) && (x <= reg->get_end())) {
                 idx = id_to_idx[reg->get_material()->get_id()];
@@ -141,7 +141,7 @@ solver_int(dev, scen)
         m_d[i][2] = m_sim_consts[idx].inversion_init;
         m_e[i] = 0.0;
         m_h[i] = 0.0;
-        if (i == scen->get_num_gridpoints() - 1) {
+        if (i == scen->get_num_gridpoints(0) - 1) {
             m_h[i + 1] = 0.0;
         }
     }
@@ -181,7 +181,7 @@ solver_int(dev, scen)
     for (const auto& src : scen->get_sources()) {
         sim_source s;
         s.type = src->get_type();
-        s.x_idx = src->get_position()/scen->get_gridpoint_size();
+        s.x_idx = src->get_position()/scen->get_gridpoint_size(0);
         s.data_base_idx = base_idx;
         m_sim_sources.push_back(s);
 
@@ -234,7 +234,7 @@ solver_openmp_2lvl_os::run() const
               /* update e in parallel */
               //#pragma omp for simd schedule(static)
 #pragma omp for schedule(static)
-              for (int i = 0; i < m_scenario->get_num_gridpoints(); i++) {
+              for (int i = 0; i < m_scenario->get_num_gridpoints(0); i++) {
                   unsigned int mat_idx = m_mat_indices[i];
 
                   real j = m_sim_consts[mat_idx].sigma * m_e[i];
@@ -263,7 +263,7 @@ solver_openmp_2lvl_os::run() const
               /* update h and dm in parallel */
               //#pragma omp for simd schedule(static)
 #pragma omp for schedule(static)
-              for (int i = 0; i < m_scenario->get_num_gridpoints(); i++) {
+              for (int i = 0; i < m_scenario->get_num_gridpoints(0); i++) {
                   unsigned int mat_idx = m_mat_indices[i];
 
                   if (i > 0) {
@@ -301,7 +301,7 @@ solver_openmp_2lvl_os::run() const
 
               /* apply boundary condition */
               m_h[0] = 0;
-              m_h[m_scenario->get_num_gridpoints()] = 0;
+              m_h[m_scenario->get_num_gridpoints(0)] = 0;
 
               /* save results to scratchpad in parallel */
               for (const auto& cle : m_copy_list) {

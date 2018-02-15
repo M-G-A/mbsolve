@@ -27,6 +27,8 @@
 #include <boost/timer/timer.hpp>
 #include <mbsolve.hpp>
 
+#define dim 1
+
 namespace po = boost::program_options;
 namespace ti = boost::timer;
 
@@ -36,7 +38,7 @@ static std::string scenario_file;
 static std::string solver_method;
 static std::string writer_method;
 static mbsolve::real sim_endtime;
-static unsigned int num_gridpoints;
+static unsigned int num_gridpoints[dim];
 
 static void parse_args(int argc, char **argv)
 {
@@ -54,7 +56,7 @@ static void parse_args(int argc, char **argv)
 	 "Set writer")
         ("endtime,e", po::value<mbsolve::real>(&sim_endtime),
          "Set simulation end time")
-        ("gridpoints,g", po::value<unsigned int>(&num_gridpoints),
+        ("gridpoints,g", po::value<unsigned int>(&num_gridpoints[0]),
          "Set number of spatial grid points");
 
     po::variables_map vm;
@@ -214,16 +216,19 @@ int main(int argc, char **argv)
                             ("Active region", mat_ar, 0, 150e-6));
 
            /* default settings */
-            if (num_gridpoints == 0) {
-                num_gridpoints = 32768;
+            for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
+                if (num_gridpoints[dim_num] == 0) {
+                    num_gridpoints[dim_num] = 32768;
+                }
             }
+
             if (sim_endtime < 1e-21) {
                 sim_endtime = 80e-15;
             }
 
             /* Song basic scenario */
             scen = std::make_shared<mbsolve::scenario>
-                ("Basic", num_gridpoints, sim_endtime);
+                (dim, "Basic", num_gridpoints, sim_endtime);
 
             auto sech_pulse = std::make_shared<mbsolve::sech_pulse>
                 ("sech", 0.0, mbsolve::source::hard_source, 3.5471e9,
@@ -289,8 +294,10 @@ int main(int argc, char **argv)
                             ("Vacuum right", mat_vac, 142.5e-6, 150e-6));
 
             /* default settings */
-            if (num_gridpoints == 0) {
-                num_gridpoints = 32768;
+            for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
+                if (num_gridpoints[dim_num] == 0) {
+                    num_gridpoints[dim_num] = 32768;
+                }
             }
             if (sim_endtime < 1e-21) {
                 sim_endtime = 200e-15;
@@ -298,7 +305,7 @@ int main(int argc, char **argv)
 
             /* Ziolkowski basic scenario */
             scen = std::make_shared<mbsolve::scenario>
-                ("Basic", num_gridpoints, sim_endtime);
+                (dim, "Basic", num_gridpoints, sim_endtime);
 
             auto sech_pulse = std::make_shared<mbsolve::sech_pulse>
                 //("sech", 0.0, mbsolve::source::hard_source, 4.2186e9/2, 2e14,
@@ -366,8 +373,10 @@ int main(int argc, char **argv)
                             ("Gain L", mat_gain, 0.625e-3, 1.125e-3));
 
             /* default settings */
-            if (num_gridpoints == 0) {
-                num_gridpoints = 8192;
+            for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
+                if (num_gridpoints[dim_num] == 0) {
+                    num_gridpoints[dim_num] = 8912;
+                }
             }
             if (sim_endtime < 1e-21) {
                 sim_endtime = 2e-9;
@@ -375,7 +384,7 @@ int main(int argc, char **argv)
 
             /* basic scenario */
             scen = std::make_shared<mbsolve::scenario>
-                ("basic", num_gridpoints, sim_endtime);
+                (dim, "basic", num_gridpoints, sim_endtime);
 
             scen->add_record(std::make_shared<mbsolve::record>
                              ("inv12", 1e-12));
@@ -417,7 +426,7 @@ int main(int argc, char **argv)
 	total_time +=1e-9 * times.wall;
 
 	/* grid point updates per second */
-	double gpups = 1e-6 * 1e9/times.wall * scen->get_num_gridpoints() *
+	double gpups = 1e-6 * 1e9/times.wall * scen->get_num_gridpoints(0) *
             scen->get_endtime()/scen->get_timestep_size();
 	std::cout << "Performance: " << gpups << " MGPU/s" << std::endl;
 

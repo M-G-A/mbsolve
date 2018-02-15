@@ -28,6 +28,8 @@
 #include <internal/common_fdtd_2lvl.hpp>
 #include <internal/copy_list_entry.hpp>
 
+#define dim 1
+
 namespace mbsolve {
 
 template<unsigned int num_lvl>
@@ -83,7 +85,7 @@ public:
     real sigma;
 
     /* simulation constants */
-    real d_x_inv;
+    real d_r_inv;
     real d_t;
 
     /* initialization constants */
@@ -125,9 +127,9 @@ private:
 
     std::vector<qm_operator_t > m_generators;
 
-    real **m_h;
-    real **m_e;
-    real **m_p;
+    Eigen::Matrix<real, 1, 1> **m_h;
+    Eigen::Matrix<real, 1, 1> **m_e;
+    Eigen::Matrix<real, 1, 1> **m_p;
 
     real *m_result_scratch;
 

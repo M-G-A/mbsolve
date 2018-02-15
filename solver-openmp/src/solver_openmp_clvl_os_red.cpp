@@ -124,11 +124,12 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
 
     /* determine simulation settings */
     init_fdtd_simulation(dev, scen, 0.5);
-
+    
     setup_generators();
 
     /* set up simulaton constants */
     std::map<std::string, unsigned int> id_to_idx;
+    
     unsigned int j = 0;
 
     for (const auto& mat_id : dev->get_used_materials()) {
@@ -142,7 +143,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
 
         /* factor for magnetic field update */
         sc.M_CH = scen->get_timestep_size()/
-            (MU0 * mat->get_rel_permeability() * scen->get_gridpoint_size());
+            (MU0 * mat->get_rel_permeability() * scen->get_gridpoint_size(0));
 
         /* convert loss term to conductivity */
         sc.sigma = sqrt(EPS0 * mat->get_rel_permittivity()/
@@ -277,7 +278,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
         }
 
         /* simulation settings */
-        sc.d_x_inv = 1.0/scen->get_gridpoint_size();
+        sc.d_r_inv = 1.0/scen->get_gridpoint_size(0);
         sc.d_t = scen->get_timestep_size();
 
         m_sim_consts.push_back(sc);
@@ -290,16 +291,16 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
 
     std::cout << "Number of threads: " << P << std::endl;
     m_d = new Eigen::Matrix<real, num_adj, 1>*[P];
-    m_e = new real*[P];
-    m_h = new real*[P];
-    m_p = new real*[P];
+    m_e = new Eigen::Matrix<real, dim, 1>*[P];
+    m_h = new Eigen::Matrix<real, dim, 1>*[P];
+    m_p = new Eigen::Matrix<real, dim, 1>*[P];
     m_mat_indices = new unsigned int*[P];
 
-    unsigned int *l_mat_indices = new unsigned int[scen->get_num_gridpoints()];
+    unsigned int *l_mat_indices = new unsigned int[scen->get_num_gridpoints(0)];
 
-    for (unsigned int i = 0; i < scen->get_num_gridpoints(); i++) {
+    for (unsigned int i = 0; i < scen->get_num_gridpoints(0); i++) {
         unsigned int mat_idx = 0;
-        real x = i * scen->get_gridpoint_size();
+        real x = i * scen->get_gridpoint_size(0);
 
         for (const auto& reg : dev->get_regions()) {
             if ((x >= reg->get_start()) && (x <= reg->get_end())) {
@@ -348,7 +349,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
     for (const auto& src : scen->get_sources()) {
         sim_source s;
         s.type = src->get_type();
-        s.x_idx = src->get_position()/scen->get_gridpoint_size();
+        s.x_idx = src->get_position()/scen->get_gridpoint_size(0);
         s.data_base_idx = base_idx;
         m_sim_sources.push_back(s);
 
@@ -361,9 +362,9 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
         base_idx += scen->get_num_timesteps();
     }
 
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
-    unsigned int chunk_base = m_scenario->get_num_gridpoints()/P;
-    unsigned int chunk_rem = m_scenario->get_num_gridpoints() % P;
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
+    unsigned int chunk_base = m_scenario->get_num_gridpoints(0)/P;
+    unsigned int chunk_rem = m_scenario->get_num_gridpoints(0) % P;
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
 
 #ifndef XEON_PHI_OFFLOAD
@@ -415,9 +416,9 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
             m_d[tid] = (Eigen::Matrix<real, num_adj, 1> *)
                 mb_aligned_alloc(size *
                                  sizeof(Eigen::Matrix<real, num_adj, 1>));
-            m_h[tid] = (real *) mb_aligned_alloc(size * sizeof(real));
-            m_e[tid] = (real *) mb_aligned_alloc(size * sizeof(real));
-            m_p[tid] = (real *) mb_aligned_alloc(size * sizeof(real));
+            m_h[tid] = (Eigen::Matrix<real, dim, 1> *) mb_aligned_alloc(size * sizeof(Eigen::Matrix<real, dim, 1>));
+            m_e[tid] = (Eigen::Matrix<real, dim, 1> *) mb_aligned_alloc(size * sizeof(Eigen::Matrix<real, dim, 1>));
+            m_p[tid] = (Eigen::Matrix<real, dim, 1> *) mb_aligned_alloc(size * sizeof(Eigen::Matrix<real, dim, 1>));
             m_mat_indices[tid] = (unsigned int *)
                 mb_aligned_alloc(size * sizeof(unsigned int));
         }
@@ -439,7 +440,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
             unsigned int size = chunk + 2 * OL;
 
             Eigen::Matrix<real, num_adj, 1> *t_d;
-            real *t_h, *t_e, *t_p;
+            Eigen::Matrix<real, dim, 1> *t_h, *t_e, *t_p;
             unsigned int *t_mat_indices;
 
             t_d = m_d[tid];
@@ -466,9 +467,9 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
 
                     t_d[i] = Eigen::Matrix<real, num_adj, 1>::Zero();
                 }
-                t_e[i] = 0.0;
-                t_p[i] = 0.0;
-                t_h[i] = 0.0;
+                t_e[i] = Eigen::Matrix<real, dim, 1>::Zero();
+                t_p[i] = Eigen::Matrix<real, dim, 1>::Zero();
+                t_h[i] = Eigen::Matrix<real, dim, 1>::Zero();
             }
 #pragma omp barrier
         }
@@ -485,7 +486,7 @@ solver_openmp_clvl_os_red<num_lvl>::~solver_openmp_clvl_os_red()
     unsigned int P = omp_get_max_threads();
     unsigned int num_sources = m_sim_sources.size();
     unsigned int num_copy = m_copy_list.size();
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
 
 #ifdef XEON_PHI_OFFLOAD
@@ -535,8 +536,8 @@ solver_openmp_clvl_os_red<num_lvl>::get_name() const
 
 template<unsigned int num_lvl, unsigned int num_adj>
 void
-update_fdtd(unsigned int size, unsigned int border, real *t_e, real *t_p,
-            real *t_h, Eigen::Matrix<real, num_adj, 1>* t_d,
+update_fdtd(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_e, Eigen::Matrix<real, dim, 1> *t_p,
+            Eigen::Matrix<real, dim, 1> *t_h, Eigen::Matrix<real, num_adj, 1>* t_d,
             unsigned int *t_mat_indices,
             sim_constants_clvl_os<num_lvl> *l_sim_consts)
 {
@@ -544,11 +545,11 @@ update_fdtd(unsigned int size, unsigned int border, real *t_e, real *t_p,
     for (int i = border; i < size - border - 1; i++) {
         int mat_idx = t_mat_indices[i];
 
-        real j = l_sim_consts[mat_idx].sigma * t_e[i];
+        Eigen::Matrix<real, dim, 1> j = l_sim_consts[mat_idx].sigma * t_e[i];
 
-        t_e[i] += l_sim_consts[mat_idx].M_CE *
-            (-j - t_p[i] + (t_h[i + 1] - t_h[i]) *
-             l_sim_consts[mat_idx].d_x_inv);
+        t_e[i][0] += l_sim_consts[mat_idx].M_CE *
+            (-j[0] - t_p[i][0] + (t_h[i + 1][0] - t_h[i][0]) *
+             l_sim_consts[mat_idx].d_r_inv);
         /*
         if (i >= border + 1) {
             t_h[i] += l_sim_consts[mat_idx].M_CH * (t_e[i] - t_e[i - 1]);
@@ -559,8 +560,8 @@ update_fdtd(unsigned int size, unsigned int border, real *t_e, real *t_p,
 
 template<unsigned int num_lvl, unsigned int num_adj>
 void
-update_h(unsigned int size, unsigned int border, real *t_e, real *t_p,
-            real *t_h, Eigen::Matrix<real, num_adj, 1>* t_d,
+update_h(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_e, Eigen::Matrix<real, dim, 1> *t_p,
+            Eigen::Matrix<real, dim, 1> *t_h, Eigen::Matrix<real, num_adj, 1>* t_d,
             unsigned int *t_mat_indices,
             sim_constants_clvl_os<num_lvl> *l_sim_consts)
 {
@@ -569,13 +570,13 @@ update_h(unsigned int size, unsigned int border, real *t_e, real *t_p,
         int mat_idx = t_mat_indices[i];
 
         if (i >= border + 1) {
-            t_h[i] += l_sim_consts[mat_idx].M_CH * (t_e[i] - t_e[i - 1]);
+            t_h[i][0] += l_sim_consts[mat_idx].M_CH * (t_e[i][0] - t_e[i - 1][0]);
         }
     }
 }
 
 void
-apply_sources(real *t_e, real *source_data, unsigned int num_sources,
+apply_sources(Eigen::Matrix<real, dim, 1> *t_e, real *source_data, unsigned int num_sources,
               sim_source *l_sim_sources, unsigned int time,
               unsigned int base_pos, unsigned int chunk)
 {
@@ -584,46 +585,15 @@ apply_sources(real *t_e, real *source_data, unsigned int num_sources,
         if ((at > 0) && (at < chunk + 2 * OL)) {
             real src = source_data[l_sim_sources[k].data_base_idx + time];
             if (l_sim_sources[k].type == source::type::hard_source) {
-                t_e[at] = src;
+                t_e[at][0] = src;
             } else if (l_sim_sources[k].type == source::type::soft_source) {
                 /* TODO: fix source */
-                t_e[at] += src;
+                t_e[at][0] += src;
             } else {
             }
         }
     }
 }
-
-#if 0
-
-//
-    /* split A0 and P */
-    Eigen::Array<complex, num_adj, 1> B_I;
-    B_I = l_sim_consts[mat_idx].L * t_e[i];
-    B_I = B_I.exp();
-
-    Eigen::Matrix<real, num_adj, num_adj> B =
-        (l_sim_consts[mat_idx].B *
-         B_I.matrix().asDiagonal() *
-         l_sim_consts[mat_idx].B.adjoint()).real();
-
-    t_d[i] = l_sim_consts[mat_idx].A_0 * B *
-        l_sim_consts[mat_idx].A_0 * t_d[i];
-
-//#elif EXP_METHOD==3
-    /* analytic solution? */
-
-//#else
-    /* Eigen matrix exponential */
-    Eigen::Matrix<real, num_adj, num_adj> B =
-        (l_sim_consts[mat_idx].U * t_e[i] *
-         l_sim_consts[mat_idx].d_t).exp();
-
-    t_d[i] = l_sim_consts[mat_idx].A_0 * B *
-        l_sim_consts[mat_idx].A_0 * t_d[i];
-
-//#endif
-#endif
 
 complex mexp(const complex& arg)
 {
@@ -632,13 +602,13 @@ complex mexp(const complex& arg)
 
 template<unsigned int num_lvl, unsigned int num_adj>
 inline Eigen::Matrix<real, num_adj, num_adj>
-mat_exp(const sim_constants_clvl_os<num_lvl>& s, real e)
+mat_exp(const sim_constants_clvl_os<num_lvl>& s, Eigen::Matrix<real, dim, 1> e)
 {
     Eigen::Matrix<real, num_adj, num_adj> ret;
 
 #if EXP_METHOD==1
     /* by diagonalization */
-    Eigen::Matrix<complex, num_adj, 1> diag_exp = s.L * e;
+    Eigen::Matrix<complex, num_adj, 1> diag_exp = s.L * e[0];
     diag_exp = diag_exp.unaryExpr(&mexp);
 
     ret = (s.B * diag_exp.asDiagonal() * s.B.adjoint()).real();
@@ -646,20 +616,20 @@ mat_exp(const sim_constants_clvl_os<num_lvl>& s, real e)
     /* analytic solution */
     if (num_lvl == 2) {
         /* Rodrigues formula */
-        ret = sin(s.theta_1 * e * s.d_t)/s.theta_1 * s.U +
-            (1 - cos(s.theta_1 * e * s.d_t))/(s.theta_1 * s.theta_1) * s.U2 +
+        ret = sin(s.theta_1 * e[0] * s.d_t)/s.theta_1 * s.U +
+            (1 - cos(s.theta_1 * e[0] * s.d_t))/(s.theta_1 * s.theta_1) * s.U2 +
             Eigen::Matrix<real, num_adj, num_adj>::Identity();
     } else {
         ret = Eigen::Matrix<real, num_adj, num_adj>::Identity();
         for (int i = 0; i < num_adj/2; i++) {
             /* TODO nolias()? */
-            ret += sin(s.theta[i] * e * s.d_t) * s.coeff_1[i] +
-                (1 - cos(s.theta[i] * e * s.d_t)) * s.coeff_2[i];
+            ret += sin(s.theta[i] * e[0] * s.d_t) * s.coeff_1[i] +
+                (1 - cos(s.theta[i] * e[0] * s.d_t)) * s.coeff_2[i];
         }
     }
 #else
     /* Eigen matrix exponential */
-    ret = (s.U * e * s.d_t).exp();
+    ret = (s.U * e[0] * s.d_t).exp();
 #endif
 
     return ret;
@@ -667,7 +637,7 @@ mat_exp(const sim_constants_clvl_os<num_lvl>& s, real e)
 
 template<unsigned int num_lvl, unsigned int num_adj>
 void
-update_d(unsigned int size, unsigned int border, real *t_e, real *t_p,
+update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_e, Eigen::Matrix<real, dim, 1> *t_p,
          Eigen::Matrix<real, num_adj, 1>* t_d,
          unsigned int *t_mat_indices,
          sim_constants_clvl_os<num_lvl> *l_sim_consts)
@@ -701,12 +671,12 @@ update_d(unsigned int size, unsigned int border, real *t_e, real *t_p,
                 - l_sim_consts[mat_idx].d_in;
 
             /* update polarization */
-            t_p[i] = l_sim_consts[mat_idx].M_CP *
+            t_p[i][0] = l_sim_consts[mat_idx].M_CP *
                 l_sim_consts[mat_idx].v.transpose() *
                 (l_sim_consts[mat_idx].M * t_d[i] +
                  l_sim_consts[mat_idx].d_eq);
         } else {
-            t_p[i] = 0.0;
+            t_p[i][0] = 0.0;
         }
     }
 }
@@ -716,9 +686,9 @@ void
 solver_openmp_clvl_os_red<num_lvl>::run() const
 {
     unsigned int P = omp_get_max_threads();
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
-    unsigned int chunk_base = m_scenario->get_num_gridpoints()/P;
-    unsigned int chunk_rem = m_scenario->get_num_gridpoints() % P;
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
+    unsigned int chunk_base = m_scenario->get_num_gridpoints(0)/P;
+    unsigned int chunk_rem = m_scenario->get_num_gridpoints(0) % P;
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
     unsigned int num_sources = m_sim_sources.size();
     unsigned int num_copy = m_copy_list.size();
@@ -746,7 +716,7 @@ solver_openmp_clvl_os_red<num_lvl>::run() const
 
             /* gather pointers */
             Eigen::Matrix<real, num_adj, 1> *t_d;
-            real *t_h, *t_e, *t_p;
+            Eigen::Matrix<real, dim, 1> *t_h, *t_e, *t_p;
             unsigned int *t_mat_indices;
 
             t_d = m_d[tid];
@@ -765,8 +735,8 @@ solver_openmp_clvl_os_red<num_lvl>::run() const
 
             /* gather prev and next pointers from other threads */
             Eigen::Matrix<real, num_adj, 1> *n_d, *p_d;
-            real *n_h, *n_e;
-            real *p_h, *p_e;
+            Eigen::Matrix<real, dim, 1> *n_h, *n_e;
+            Eigen::Matrix<real, dim, 1> *p_h, *p_e;
 
             __mb_assume_aligned(p_d);
             __mb_assume_aligned(p_e);
@@ -842,10 +812,10 @@ solver_openmp_clvl_os_red<num_lvl>::run() const
 
                     /* apply field boundary condition */
                     if (tid == 0) {
-                        t_h[OL] = 0;
+                        t_h[OL][0] = 0;
                     }
                     if (tid == P - 1) {
-                        t_h[OL + chunk] = 0;
+                        t_h[OL + chunk][0] = 0;
                     }
 
                      /* save results to scratchpad in parallel */
@@ -865,9 +835,9 @@ solver_openmp_clvl_os_red<num_lvl>::run() const
                                 int idx = base_idx + i;
                                 if ((idx >= pos) && (idx < pos + cols)) {
                                     if (t == record::type::electric) {
-                                        m_result_scratch[off_r + i] = t_e[i];
+                                        m_result_scratch[off_r + i] = t_e[i][0];
                                     } else if (t == record::type::magnetic) {
-                                        m_result_scratch[off_r + i] = t_h[i];
+                                        m_result_scratch[off_r + i] = t_h[i][0];
                                     } else if (t == record::type::inversion) {
                                         m_result_scratch[off_r + i] =
                                             t_d[i](num_lvl * (num_lvl - 1));
