@@ -29,6 +29,7 @@
 #include <common_openmp.hpp>
 #include <solver_openmp_clvl_rk.hpp>
 
+#define dim 1
 namespace mbsolve {
 
 static solver_factory<solver_openmp_clvl_rk<2> > f2("openmp-2lvl-rk");
@@ -160,7 +161,7 @@ solver_openmp_clvl_rk<num_lvl>::solver_openmp_clvl_rk
                 qm->get_carrier_density();
 
             /* determine dipole operator as vector */
-            sc.v = get_adj_op(qm->get_dipole_op());
+            sc.v = get_adj_op(qm->get_dipole_op(0));
 
             std::cout << "v: " << std::endl << sc.v << std::endl;
 
@@ -206,7 +207,7 @@ solver_openmp_clvl_rk<num_lvl>::solver_openmp_clvl_rk
 
             /* determine dipole operator in adjoint representation */
             Eigen::Matrix<real, num_adj, num_adj> U;
-            U = get_adj_liouvillian(-qm->get_dipole_op());
+            U = get_adj_liouvillian(-qm->get_dipole_op(0));
             std::cout << "U: " << std::endl << U << std::endl;
 
             /* diagonalize dipole operator */

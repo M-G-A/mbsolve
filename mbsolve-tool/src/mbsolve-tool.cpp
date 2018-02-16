@@ -184,7 +184,7 @@ int main(int argc, char **argv)
         if (device_file == "song2005") {
             /* Song setup */
 
-            Eigen::Matrix<mbsolve::complex, 3, 3> H, u, d_init;
+            Eigen::Matrix<mbsolve::complex, 3, 3> H, u[dim], d_init;
 
             H <<0, 0, 0,
                 0, 2.3717, 0,
@@ -194,17 +194,17 @@ int main(int argc, char **argv)
             // mbsolve::real g = 1.0;
             mbsolve::real g = sqrt(2);
 
-            u <<0, 1.0, g,
+            u[0] <<0, 1.0, g,
                 1.0, 0, 0,
                 g, 0, 0;
-            u = u * mbsolve::E0 * 9.2374e-11;
+            u[0] = u[0] * mbsolve::E0 * 9.2374e-11;
 
             d_init << 1, 0, 0,
                 0, 0, 0,
                 0, 0, 0;
 
             auto qm = std::make_shared<mbsolve::qm_desc_3lvl>
-                (6e24, H, u, &relax_sop_song3, d_init);
+                (dim, 6e24, H, u, &relax_sop_song3, d_init);
 
             auto mat_vac = std::make_shared<mbsolve::material>("Vacuum");
             mbsolve::material::add_to_library(mat_vac);
@@ -263,18 +263,18 @@ int main(int argc, char **argv)
             } else {
                 /* Ziolkowski setup in new 2-lvl desc */
 
-                Eigen::Matrix<mbsolve::complex, 2, 2> H, u, d_init;
+                Eigen::Matrix<mbsolve::complex, 2, 2> H, u[dim], d_init;
 
                 H <<-0.5, 0,
                     0, 0.5;
                 H = H * mbsolve::HBAR * 2 * M_PI * 2e14;
-                u <<0, 1.0,
+                u[0] <<0, 1.0,
                     1.0, 0;
-                u = u * mbsolve::E0 * 6.24e-11 * (-1.0);
+                u[0] = u[0] * mbsolve::E0 * 6.24e-11 * (-1.0);
                 d_init << 1, 0,
                     0, 0;
                 qm = std::make_shared<mbsolve::qm_desc_clvl<2> >
-                    (1e24, H, u, &relax_sop_ziolk2, d_init);
+                    (dim, 1e24, H, u, &relax_sop_ziolk2, d_init);
             }
 
             /* materials */
@@ -325,7 +325,7 @@ int main(int argc, char **argv)
             if (solver_method == "openmp-2lvl-os-red") {
                 /* 2-lvl description */
                 Eigen::Matrix<mbsolve::complex, 2, 2> H;
-                Eigen::Matrix<mbsolve::complex, 2, 2> u_gain, u_abs;
+                Eigen::Matrix<mbsolve::complex, 2, 2> u_gain[dim], u_abs[dim];
                 Eigen::Matrix<mbsolve::complex, 2, 2> d_init;
 
                 /* Hamiltonian */
@@ -334,19 +334,19 @@ int main(int argc, char **argv)
                 H = H * mbsolve::HBAR * 2 * M_PI * 3.4e12;
 
                 /* dipole moment operator */
-                u_gain << 0, 1.0, 1.0, 0;
-                u_gain = u_gain * mbsolve::E0 * 2e-9;
-                u_abs << 0, 1.0, 1.0, 0;
-                u_abs = u_abs * mbsolve::E0 * 6e-9;
+                u_gain[0] << 0, 1.0, 1.0, 0;
+                u_gain[0] = u_gain[0] * mbsolve::E0 * 2e-9;
+                u_abs[0] << 0, 1.0, 1.0, 0;
+                u_abs[0] = u_abs[0] * mbsolve::E0 * 6e-9;
 
                 /* initial value density matrix */
                 d_init << 0.5, 0.001,
                     0.001, 0.5;
 
                 qm_gain = std::make_shared<mbsolve::qm_desc_clvl<2> >
-                    (5e21, H, u_gain, &relax_sop_tzenov2018_gain, d_init);
+                    (dim, 5e21, H, u_gain, &relax_sop_tzenov2018_gain, d_init);
                 qm_absorber = std::make_shared<mbsolve::qm_desc_clvl<2> >
-                    (1e21, H, u_abs, &relax_sop_tzenov2018_abs, d_init);
+                    (dim, 1e21, H, u_abs, &relax_sop_tzenov2018_abs, d_init);
 
             } else if (solver_method == "openmp-3lvl-os-red") {
 

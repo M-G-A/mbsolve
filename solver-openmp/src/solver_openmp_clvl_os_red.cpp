@@ -31,8 +31,8 @@
 
 namespace mbsolve {
 
-static solver_factory<solver_openmp_clvl_os_red<2> > f2("openmp-2lvl-os-red");
-static solver_factory<solver_openmp_clvl_os_red<3> > f3("openmp-3lvl-os-red");
+static solver_factory<solver_openmp_clvl_os_red<2,1> > f2("openmp-2lvl-os-red");
+static solver_factory<solver_openmp_clvl_os_red<3,1> > f3("openmp-3lvl-os-red");
 
 /* redundant calculation overlap */
 #ifdef XEON_PHI_OFFLOAD
@@ -43,11 +43,11 @@ const unsigned int OL = 32;
 
 const unsigned int VEC = 4;
 
-template<unsigned int num_lvl, unsigned int num_adj>
+template<unsigned int num_lvl, unsigned int num_adj, unsigned int dim>
 void
 fill_rodr_coeff(const Eigen::Matrix<complex, num_adj, num_adj>& eigenvec,
                 const Eigen::Matrix<complex, num_adj, 1>& eigenval,
-                sim_constants_clvl_os<num_lvl>& sc)
+                sim_constants_clvl_os<num_lvl,dim>& sc)
 {
     /* creating sorting order (descending eigenvalues) */
     std::vector<size_t> perm_idx(num_adj);
@@ -88,22 +88,22 @@ fill_rodr_coeff(const Eigen::Matrix<complex, num_adj, num_adj>& eigenvec,
             std::cout << "Warning: Eigenvalues not pairwise: " <<
                 eigenval(i1) << " and " << eigenval(i2) << std::endl;
         }
-        sc.theta[i] = std::abs(eigenval(i1));
+        sc.theta[0][i] = std::abs(eigenval(i1));
 
         b(2 * i, 2 * i + 1) = -1.0;
         b(2 * i + 1, 2 * i) = +1.0;
 
-        sc.coeff_1[i] = Q * b * Q.transpose();
-        sc.coeff_2[i] = Q * b * b * Q.transpose();
+        sc.coeff_1[0][i] = Q * b * Q.transpose();
+        sc.coeff_2[0][i] = Q * b * b * Q.transpose();
 
-        std::cout << "theta: "<< std::endl << sc.theta[i] << std::endl;
+        std::cout << "theta: "<< std::endl << sc.theta[0][i] << std::endl;
         std::cout << "b = " << std::endl << b << std::endl;
     }
 }
 
 
-template<unsigned int num_lvl>
-solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
+template<unsigned int num_lvl, unsigned int dim>
+solver_openmp_clvl_os_red<num_lvl, dim>::solver_openmp_clvl_os_red
 (std::shared_ptr<const device> dev, std::shared_ptr<scenario> scen) :
     solver_int(dev, scen),
     m_name("openmp-" + std::to_string(num_lvl) + "lvl-os-red")
@@ -114,7 +114,6 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
      * courant number
      * overlap
      */
-
     Eigen::initParallel();
     Eigen::setNbThreads(1);
 
@@ -133,7 +132,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
     unsigned int j = 0;
 
     for (const auto& mat_id : dev->get_used_materials()) {
-        sim_constants_clvl_os<num_lvl> sc;
+        sim_constants_clvl_os<num_lvl,dim> sc;
 
         auto mat = material::get_from_library(mat_id);
 
@@ -143,7 +142,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
 
         /* factor for magnetic field update */
         sc.M_CH = scen->get_timestep_size()/
-            (MU0 * mat->get_rel_permeability() * scen->get_gridpoint_size(0));
+            (MU0 * mat->get_rel_permeability() * scen->get_gridpoint_size(0)); //ToDo
 
         /* convert loss term to conductivity */
         sc.sigma = sqrt(EPS0 * mat->get_rel_permittivity()/
@@ -162,9 +161,9 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
                 qm->get_carrier_density();
 
             /* determine dipole operator as vector */
-            sc.v = get_adj_op(qm->get_dipole_op());
+            sc.v[0] = get_adj_op(qm->get_dipole_op(0));
 
-            std::cout << "v: " << std::endl << sc.v << std::endl;
+            std::cout << "v: " << std::endl << sc.v[0] << std::endl;
 
             /* time-independent hamiltionian in adjoint representation */
             Eigen::Matrix<real, num_adj, num_adj> M_0;
@@ -207,7 +206,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
 
             /* determine dipole operator in adjoint representation */
             Eigen::Matrix<real, num_adj, num_adj> U;
-            U = get_adj_liouvillian(-qm->get_dipole_op());
+            U = get_adj_liouvillian(-qm->get_dipole_op(0));
             std::cout << "U: " << std::endl << U << std::endl;
 
             /* diagonalize dipole operator */
@@ -219,14 +218,14 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
             //sc.B_2 = es.eigenvectors().adjoint() * A_0;
 
             sc.A_0 = A_0;
-            sc.B = es.eigenvectors();
+            sc.B[0] = es.eigenvectors();
 
             sc.M = M;
-            sc.U = U;
+            sc.U[0] = U;
 
             /* for Rodrigues formula */
-            sc.U2 = U * U;
-            sc.theta_1 = sqrt(pow(U(0, 1), 2) + pow(U(0, 2), 2)
+            sc.U2[0] = U * U;
+            sc.theta_1[0] = sqrt(pow(U(0, 1), 2) + pow(U(0, 2), 2)
                               + pow(U(1, 2), 2));
 
             /* for general analytic approach */
@@ -238,7 +237,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
             sc.has_dipole = true;
 
             /* store diagonal matrix containing the eigenvalues */
-            sc.L = es.eigenvalues() * scen->get_timestep_size();
+            sc.L[0] = es.eigenvalues() * scen->get_timestep_size();
 
             sc.d_init = get_adj_op(qm->get_d_init());
 
@@ -260,17 +259,17 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
             sc.has_qm = false;
             sc.has_dipole = false;
 
-            sc.v = Eigen::Matrix<real, num_adj, 1>::Zero();
+            sc.v[0] = Eigen::Matrix<real, num_adj, 1>::Zero();
 
             //sc.B_1 = Eigen::Matrix<complex, num_adj, num_adj>::Zero();
             //sc.B_2 = Eigen::Matrix<complex, num_adj, num_adj>::Zero();
             sc.A_0 = Eigen::Matrix<real, num_adj, num_adj>::Zero();
-            sc.B = Eigen::Matrix<complex, num_adj, num_adj>::Zero();
+            sc.B[0] = Eigen::Matrix<complex, num_adj, num_adj>::Zero();
 
             sc.M = Eigen::Matrix<real, num_adj, num_adj>::Zero();
-            sc.U = Eigen::Matrix<real, num_adj, num_adj>::Zero();
+            sc.U[0] = Eigen::Matrix<real, num_adj, num_adj>::Zero();
 
-            sc.L = Eigen::Matrix<complex, num_adj, 1>::Zero();
+            sc.L[0] = Eigen::Matrix<complex, num_adj, 1>::Zero();
 
             sc.d_in = Eigen::Matrix<real, num_adj, 1>::Zero();
             sc.d_eq = Eigen::Matrix<real, num_adj, 1>::Zero();
@@ -278,7 +277,7 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
         }
 
         /* simulation settings */
-        sc.d_r_inv = 1.0/scen->get_gridpoint_size(0);
+        sc.d_r_inv[0] = 1.0/scen->get_gridpoint_size(0);
         sc.d_t = scen->get_timestep_size();
 
         m_sim_consts.push_back(sc);
@@ -480,8 +479,8 @@ solver_openmp_clvl_os_red<num_lvl>::solver_openmp_clvl_os_red
     delete[] l_mat_indices;
 }
 
-template<unsigned int num_lvl>
-solver_openmp_clvl_os_red<num_lvl>::~solver_openmp_clvl_os_red()
+template<unsigned int num_lvl, unsigned int dim>
+solver_openmp_clvl_os_red<num_lvl, dim>::~solver_openmp_clvl_os_red()
 {
     unsigned int P = omp_get_max_threads();
     unsigned int num_sources = m_sim_sources.size();
@@ -527,19 +526,19 @@ solver_openmp_clvl_os_red<num_lvl>::~solver_openmp_clvl_os_red()
     delete[] m_mat_indices;
 }
 
-template<unsigned int num_lvl>
+template<unsigned int num_lvl, unsigned int dim>
 const std::string&
-solver_openmp_clvl_os_red<num_lvl>::get_name() const
+solver_openmp_clvl_os_red<num_lvl, dim>::get_name() const
 {
     return m_name;
 }
 
-template<unsigned int num_lvl, unsigned int num_adj>
+template<unsigned int num_lvl, unsigned int num_adj, unsigned int dim>
 void
 update_fdtd(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_e, Eigen::Matrix<real, dim, 1> *t_p,
             Eigen::Matrix<real, dim, 1> *t_h, Eigen::Matrix<real, num_adj, 1>* t_d,
             unsigned int *t_mat_indices,
-            sim_constants_clvl_os<num_lvl> *l_sim_consts)
+            sim_constants_clvl_os<num_lvl,dim> *l_sim_consts)
 {
 #pragma omp simd aligned(t_d, t_e, t_p, t_h, t_mat_indices : ALIGN)
     for (int i = border; i < size - border - 1; i++) {
@@ -549,7 +548,7 @@ update_fdtd(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> 
 
         t_e[i][0] += l_sim_consts[mat_idx].M_CE *
             (-j[0] - t_p[i][0] + (t_h[i + 1][0] - t_h[i][0]) *
-             l_sim_consts[mat_idx].d_r_inv);
+             l_sim_consts[mat_idx].d_r_inv[0]);
         /*
         if (i >= border + 1) {
             t_h[i] += l_sim_consts[mat_idx].M_CH * (t_e[i] - t_e[i - 1]);
@@ -558,12 +557,12 @@ update_fdtd(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> 
     }
 }
 
-template<unsigned int num_lvl, unsigned int num_adj>
+template<unsigned int num_lvl, unsigned int num_adj, unsigned int dim>
 void
 update_h(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_e, Eigen::Matrix<real, dim, 1> *t_p,
             Eigen::Matrix<real, dim, 1> *t_h, Eigen::Matrix<real, num_adj, 1>* t_d,
             unsigned int *t_mat_indices,
-            sim_constants_clvl_os<num_lvl> *l_sim_consts)
+            sim_constants_clvl_os<num_lvl,dim> *l_sim_consts)
 {
 #pragma omp simd aligned(t_d, t_e, t_p, t_h, t_mat_indices : ALIGN)
     for (int i = border; i < size - border - 1; i++) {
@@ -576,9 +575,9 @@ update_h(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
 }
 
 void
-apply_sources(Eigen::Matrix<real, dim, 1> *t_e, real *source_data, unsigned int num_sources,
+apply_sources(Eigen::Matrix<real, 1, 1> *t_e, real *source_data, unsigned int num_sources,
               sim_source *l_sim_sources, unsigned int time,
-              unsigned int base_pos, unsigned int chunk)
+              unsigned int base_pos, unsigned int chunk) //ToDo template dim
 {
     for (unsigned int k = 0; k < num_sources; k++) {
         int at = l_sim_sources[k].x_idx - base_pos + OL;
@@ -600,47 +599,46 @@ complex mexp(const complex& arg)
     return std::exp(arg);
 }
 
-template<unsigned int num_lvl, unsigned int num_adj>
+template<unsigned int num_lvl, unsigned int num_adj, unsigned int dim>
 inline Eigen::Matrix<real, num_adj, num_adj>
-mat_exp(const sim_constants_clvl_os<num_lvl>& s, Eigen::Matrix<real, dim, 1> e)
+mat_exp(const sim_constants_clvl_os<num_lvl,dim>& s, Eigen::Matrix<real, dim, 1> e)
 {
     Eigen::Matrix<real, num_adj, num_adj> ret;
 
 #if EXP_METHOD==1
     /* by diagonalization */
-    Eigen::Matrix<complex, num_adj, 1> diag_exp = s.L * e[0];
+    Eigen::Matrix<complex, num_adj, 1> diag_exp = s.L[0] * e[0];
     diag_exp = diag_exp.unaryExpr(&mexp);
 
-    ret = (s.B * diag_exp.asDiagonal() * s.B.adjoint()).real();
+    ret = (s.B[0] * diag_exp.asDiagonal() * s.B[0].adjoint()).real();
 #elif EXP_METHOD==2
     /* analytic solution */
     if (num_lvl == 2) {
         /* Rodrigues formula */
-        ret = sin(s.theta_1 * e[0] * s.d_t)/s.theta_1 * s.U +
-            (1 - cos(s.theta_1 * e[0] * s.d_t))/(s.theta_1 * s.theta_1) * s.U2 +
-            Eigen::Matrix<real, num_adj, num_adj>::Identity();
+        ret = sin(s.theta_1[0] * e[0] * s.d_t)/s.theta_1[0] * s.U[0] +
+            (1 - cos(s.theta_1[0] * e[0] * s.d_t))/(s.theta_1[0] * s.theta_1[0]) * s.U2[0] + Eigen::Matrix<real, num_adj, num_adj>::Identity();
     } else {
         ret = Eigen::Matrix<real, num_adj, num_adj>::Identity();
         for (int i = 0; i < num_adj/2; i++) {
             /* TODO nolias()? */
-            ret += sin(s.theta[i] * e[0] * s.d_t) * s.coeff_1[i] +
-                (1 - cos(s.theta[i] * e[0] * s.d_t)) * s.coeff_2[i];
+            ret += sin(s.theta[0][i] * e[0] * s.d_t) * s.coeff_1[0][i] +
+                (1 - cos(s.theta[0][i] * e[0] * s.d_t)) * s.coeff_2[0][i];
         }
     }
 #else
     /* Eigen matrix exponential */
-    ret = (s.U * e[0] * s.d_t).exp();
+    ret = (s.U[0] * e[0] * s.d_t).exp();
 #endif
 
     return ret;
 }
 
-template<unsigned int num_lvl, unsigned int num_adj>
+template<unsigned int num_lvl, unsigned int num_adj, unsigned int dim>
 void
 update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_e, Eigen::Matrix<real, dim, 1> *t_p,
          Eigen::Matrix<real, num_adj, 1>* t_d,
          unsigned int *t_mat_indices,
-         sim_constants_clvl_os<num_lvl> *l_sim_consts)
+         sim_constants_clvl_os<num_lvl,dim> *l_sim_consts)
 {
     //#pragma omp simd aligned(t_d, t_e, t_mat_indices : ALIGN)
     for (int i = border; i < size - border - 1; i++) {
@@ -659,7 +657,7 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
             if (l_sim_consts[mat_idx].has_dipole) {
                 /* determine time-dependent propagator */
                 Eigen::Matrix<real, num_adj, num_adj> A_I =
-                    mat_exp<num_lvl, num_adj>(l_sim_consts[mat_idx], t_e[i]);
+                    mat_exp<num_lvl, num_adj, dim>(l_sim_consts[mat_idx], t_e[i]);
                 d2 = A_I * d1;
             } else {
                 d2 = d1;
@@ -672,7 +670,7 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
 
             /* update polarization */
             t_p[i][0] = l_sim_consts[mat_idx].M_CP *
-                l_sim_consts[mat_idx].v.transpose() *
+                l_sim_consts[mat_idx].v[0].transpose() *
                 (l_sim_consts[mat_idx].M * t_d[i] +
                  l_sim_consts[mat_idx].d_eq);
         } else {
@@ -681,9 +679,9 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
     }
 }
 
-template<unsigned int num_lvl>
+template<unsigned int num_lvl, unsigned int dim>
 void
-solver_openmp_clvl_os_red<num_lvl>::run() const
+solver_openmp_clvl_os_red<num_lvl, dim>::run() const
 {
     unsigned int P = omp_get_max_threads();
     unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
@@ -792,11 +790,11 @@ solver_openmp_clvl_os_red<num_lvl>::run() const
                     unsigned int border = m - (m % VEC);
 
                     /* update d */
-                    update_d<num_lvl, num_adj>(size, border, t_e, t_p, t_d,
+                    update_d<num_lvl, num_adj, dim>(size, border, t_e, t_p, t_d,
                                                t_mat_indices, l_sim_consts);
 
                      /* update e + h with fdtd */
-                    update_fdtd<num_lvl, num_adj>(size, border, t_e, t_p, t_h,
+                    update_fdtd<num_lvl, num_adj, dim>(size, border, t_e, t_p, t_h,
                                                   t_d, t_mat_indices,
                                                   l_sim_consts);
 
@@ -805,7 +803,7 @@ solver_openmp_clvl_os_red<num_lvl>::run() const
                                   l_sim_sources, n * OL + m, tid * chunk_base,
                                   chunk);
 
-                   update_h<num_lvl, num_adj>(size, border, t_e, t_p, t_h,
+                   update_h<num_lvl, num_adj, dim>(size, border, t_e, t_p, t_h,
                                               t_d, t_mat_indices,
                                               l_sim_consts);
 

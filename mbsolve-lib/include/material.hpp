@@ -151,7 +151,7 @@ private:
     matrix_t m_h;
 
     /* dipole moment operator */
-    matrix_t m_u;
+    Eigen::Matrix<complex, n_lvl, n_lvl> *m_u;
 
     /* Lindblad superoperator */
     callback_t m_g;
@@ -161,19 +161,23 @@ private:
 
 public:
 
-    explicit qm_desc_clvl(real carrier_density,
+    explicit qm_desc_clvl(unsigned int dim, real carrier_density,
                           const matrix_t& hamiltonian,
-                          const matrix_t& dipole_op,
+                          matrix_t *dipole_op,
                           const callback_t& lindblad_op,
                           const matrix_t& d_init) :
         qm_description(carrier_density),
-        m_h(hamiltonian), m_u(dipole_op), m_g(lindblad_op), m_d_init(d_init)
+        m_h(hamiltonian), m_g(lindblad_op), m_d_init(d_init)
     {
+        m_u=new Eigen::Matrix<complex, n_lvl, n_lvl> [dim];
+        for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
+            m_u[dim_num]=dipole_op[dim_num];
+        }
     }
 
     const matrix_t& get_hamiltonian() const { return m_h; }
 
-    const matrix_t& get_dipole_op() const { return m_u; }
+    const matrix_t& get_dipole_op(unsigned int dim_num) const { return m_u[dim_num]; }
 
     const callback_t& get_lindblad_op() const { return m_g; }
 
