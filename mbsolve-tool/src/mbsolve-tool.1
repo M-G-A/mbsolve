@@ -1,0 +1,78 @@
+
+.TH mb-solve 1 "16 Feb 2018" "version 2.0"
+
+.SH NAME
+mbsolve-tool - A scientific tool for solving the coupled Maxwell and Liouville-Von Neumann equations
+
+.SH SYNOPSIS
+.B [-h] [-d
+.I device
+.B ] [-s
+.I "scenario"
+.B ] [-m
+.I "solver"
+.B ] [-e
+.I endtime
+.B ] [-D
+.I dimension
+.B ] [-g
+.I "grid#"
+.B ] [-w
+.I "writer"
+.B ] [-o
+.I filename
+.B ]
+
+.SH DESCRIPTION
+mbsolve is a library written mostly in c++. It is able to solve the Liouville-Von Neuman equation and the Maxwell equations while coupled over dipole-moments.
+The library can be used in c++ and python. The user defines a device consisting of different layers of materials. In the scenario he describes the circumstances of the simulation,
+such as the temperature and sources. Afterwards a solver method is chosen.
+
+.PP
+The mbsolve-tool is a shell programm written in c++. It is a lightweight tool for testing the mbsolve-library.
+.PP
+
+.PP
+.B -h 
+    Display help
+
+.PP
+.B -d
+    Device you want to simulate. At the moment their are following devices:
+.I song2005, ziolkowski1995, tzenov2018-cpml
+
+.PP
+.B -s
+    Use a default scenario. At the moment their are none to choose?
+
+.PP
+.B -m
+    Choose solver method. At the moment there are 
+.I openmp-2lvl-os, openmp-2lvl-os-red-old, openmp-2lvl-os-red, openmp-2lvl-pc, openmp-2lvl-pc-red, openmp-2lvl-rk, openmp-3lvl-os-red, openmp-3lvl-rk 
+." neglect old solver?
+
+.PP
+.B -t
+    Set simulation time in secondes
+
+.PP
+.B -D
+    Set the dimension of the simulation
+
+.PP
+.B -g
+    Set the number of discretization points int the first direction
+." ToDo: option for all dimensions
+
+.PP
+.B -w
+    Choose your writer method. At the moment there is 
+.I matlab
+. hdf5 support will come later
+
+.PP
+.B -o
+    Output file the results are written to
+
+.PP
+.BR "example: " "./mbsolve-tool -d ziolkowski1995 -m openmp-2lvl-os-red -D 2 -e 500e-15 -g 5000 -w matlab -o ~/Desktop/test.mat"

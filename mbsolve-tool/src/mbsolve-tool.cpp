@@ -27,7 +27,7 @@
 #include <boost/timer/timer.hpp>
 #include <mbsolve.hpp>
 
-#define dim 1
+//#define dim 1
 
 namespace po = boost::program_options;
 namespace ti = boost::timer;
@@ -38,7 +38,9 @@ static std::string scenario_file;
 static std::string solver_method;
 static std::string writer_method;
 static mbsolve::real sim_endtime;
-static unsigned int num_gridpoints[dim];
+static unsigned int dim;
+static unsigned int num_gridpoint;
+static unsigned int *num_gridpoints;
 
 static void parse_args(int argc, char **argv)
 {
@@ -56,30 +58,43 @@ static void parse_args(int argc, char **argv)
 	 "Set writer")
         ("endtime,e", po::value<mbsolve::real>(&sim_endtime),
          "Set simulation end time")
-        ("gridpoints,g", po::value<unsigned int>(&num_gridpoints[0]),
-         "Set number of spatial grid points");
+        ("gridpoints,g", po::value<unsigned int>(&num_gridpoint),
+         "Set number of spatial grid points")
+        ("Dimension,D", po::value<unsigned int>(&dim),
+         "Set dimension");
 
     po::variables_map vm;
     try {
 	po::store(po::parse_command_line(argc, argv, desc), vm);
 	if (vm.count("help")) {
-	    std::cout << desc;
+	    std::cout << desc << "\nFor more information see the man page!" << std::endl;
 	    exit(0);
 	}
 	po::notify(vm);
     } catch (po::error& e) {
-	std::cerr << "Error: " << e.what() << std::endl;
-	std::cerr << desc;
-	exit(1);
+        std::cerr << "Error: " << e.what()  << std::endl;
+        std::cerr << desc << "\nFor more information see the man page!" << std::endl;
+        exit(1);
     }
 
     if (vm.count("device")) {
-	device_file = vm["device"].as<std::string>();
-	std::cout << "Using device file " << device_file << std::endl;
+        device_file = vm["device"].as<std::string>();
+        std::cout << "Using device file " << device_file << std::endl;
     }
     if (vm.count("scenario")) {
-	scenario_file = vm["scenario"].as<std::string>();
-	std::cout << "Using scenario file " << scenario_file << std::endl;
+        scenario_file = vm["scenario"].as<std::string>();
+        std::cout << "Using scenario file " << scenario_file << std::endl;
+    }
+    if (vm.count("Dimension")) {
+        num_gridpoints = new unsigned int [dim];
+    }
+    else{
+        dim=1;
+        num_gridpoints = new unsigned int [dim];
+    }
+    std::cout << "simulating in "<< dim << "D" << std::endl;
+    if (vm.count("gridpoints")) {
+        num_gridpoints[0] = num_gridpoint;
     }
 }
 
@@ -184,7 +199,7 @@ int main(int argc, char **argv)
         if (device_file == "song2005") {
             /* Song setup */
 
-            Eigen::Matrix<mbsolve::complex, 3, 3> H, u[dim], d_init;
+            Eigen::Matrix<mbsolve::complex, 3, 3> H, *u, d_init;
 
             H <<0, 0, 0,
                 0, 2.3717, 0,
@@ -194,6 +209,7 @@ int main(int argc, char **argv)
             // mbsolve::real g = 1.0;
             mbsolve::real g = sqrt(2);
 
+            u = new Eigen::Matrix<mbsolve::complex, 3, 3> [dim];
             u[0] <<0, 1.0, g,
                 1.0, 0, 0,
                 g, 0, 0;
@@ -263,11 +279,13 @@ int main(int argc, char **argv)
             } else {
                 /* Ziolkowski setup in new 2-lvl desc */
 
-                Eigen::Matrix<mbsolve::complex, 2, 2> H, u[dim], d_init;
+                Eigen::Matrix<mbsolve::complex, 2, 2> H, *u, d_init;
 
                 H <<-0.5, 0,
                     0, 0.5;
                 H = H * mbsolve::HBAR * 2 * M_PI * 2e14;
+                
+                u = new Eigen::Matrix<mbsolve::complex, 2, 2> [dim];
                 u[0] <<0, 1.0,
                     1.0, 0;
                 u[0] = u[0] * mbsolve::E0 * 6.24e-11 * (-1.0);
@@ -325,7 +343,7 @@ int main(int argc, char **argv)
             if (solver_method == "openmp-2lvl-os-red") {
                 /* 2-lvl description */
                 Eigen::Matrix<mbsolve::complex, 2, 2> H;
-                Eigen::Matrix<mbsolve::complex, 2, 2> u_gain[dim], u_abs[dim];
+                Eigen::Matrix<mbsolve::complex, 2, 2> *u_gain, *u_abs;
                 Eigen::Matrix<mbsolve::complex, 2, 2> d_init;
 
                 /* Hamiltonian */
@@ -333,6 +351,8 @@ int main(int argc, char **argv)
                     0, 0.5;
                 H = H * mbsolve::HBAR * 2 * M_PI * 3.4e12;
 
+                u_gain = new Eigen::Matrix<mbsolve::complex, 2, 2> [dim];
+                u_abs = new Eigen::Matrix<mbsolve::complex, 2, 2> [dim];
                 /* dipole moment operator */
                 u_gain[0] << 0, 1.0, 1.0, 0;
                 u_gain[0] = u_gain[0] * mbsolve::E0 * 2e-9;

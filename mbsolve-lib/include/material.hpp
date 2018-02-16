@@ -166,13 +166,9 @@ public:
                           matrix_t *dipole_op,
                           const callback_t& lindblad_op,
                           const matrix_t& d_init) :
-        qm_description(carrier_density),
-        m_h(hamiltonian), m_g(lindblad_op), m_d_init(d_init)
+        qm_description(carrier_density), m_h(hamiltonian), m_u(dipole_op),
+        m_g(lindblad_op), m_d_init(d_init)
     {
-        m_u=new Eigen::Matrix<complex, n_lvl, n_lvl> [dim];
-        for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
-            m_u[dim_num]=dipole_op[dim_num];
-        }
     }
 
     const matrix_t& get_hamiltonian() const { return m_h; }
@@ -248,11 +244,11 @@ public:
                       real losses = 0.0,
                       real rel_permeability = 1.0) :
         m_id(id),
-        m_qm(qm),
         m_rel_permittivity(rel_permittivity),
+        m_qm(qm),
         m_rel_permeability(rel_permeability),
-        m_losses(losses),
-        m_overlap_factor(overlap_factor)
+        m_overlap_factor(overlap_factor),
+        m_losses(losses)
     {
     }
 
