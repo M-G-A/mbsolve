@@ -76,6 +76,9 @@ scenario::set_num_timesteps(unsigned int value)
 unsigned int
 scenario::get_num_gridpoints(unsigned int dim_num) const
 {
+    if (dim_num>m_dim-1) {
+        return 1;
+    }
     return m_num_gridpoints[dim_num];
 }
 

@@ -32,6 +32,11 @@
 
 namespace mbsolve {
 
+struct sim_grid{
+    unsigned int ***ind;
+    unsigned int *num;
+};
+
 template<unsigned int num_lvl, unsigned int dim>
 class sim_constants_clvl_os
 {
@@ -102,8 +107,10 @@ class solver_openmp_clvl_os_red : public solver_int
     typedef Eigen::Matrix<complex, num_adj, num_adj> complex_matrix_t;
     typedef Eigen::Matrix<real, num_adj, num_adj> real_matrix_t;
     typedef Eigen::Matrix<real, num_adj, 1> real_vector_t;
-
+    
+    
 public:
+    
     solver_openmp_clvl_os_red(std::shared_ptr<const device> dev,
                               std::shared_ptr<scenario> scen);
 
@@ -112,6 +119,8 @@ public:
     const std::string& get_name() const;
 
     void run() const;
+    
+    int test;
 
 private:
     const std::string m_name;
@@ -127,9 +136,11 @@ private:
 
     std::vector<qm_operator_t > m_generators;
 
-    Eigen::Matrix<real, 1, 1> **m_h;
-    Eigen::Matrix<real, 1, 1> **m_e;
-    Eigen::Matrix<real, 1, 1> **m_p;
+    Eigen::Matrix<real, dim, 1> **m_h;
+    Eigen::Matrix<real, dim, 1> **m_e;
+    Eigen::Matrix<real, dim, 1> **m_p;
+
+    sim_grid grid;
 
     real *m_result_scratch;
 
@@ -153,6 +164,7 @@ private:
 
     std::vector<copy_list_entry> m_copy_list;
 
+    
     void
     setup_generators()
     {

@@ -198,7 +198,11 @@ int main(int argc, char **argv)
 
         if (device_file == "song2005") {
             /* Song setup */
-
+            if (dim==2) {
+                solver_method=solver_method+"-2d";
+            }else if (dim==3){
+                solver_method=solver_method+"-3d";
+            }
             Eigen::Matrix<mbsolve::complex, 3, 3> H, *u, d_init;
 
             H <<0, 0, 0,
@@ -214,6 +218,13 @@ int main(int argc, char **argv)
                 1.0, 0, 0,
                 g, 0, 0;
             u[0] = u[0] * mbsolve::E0 * 9.2374e-11;
+            for (unsigned int dim_num=1; dim_num<dim; dim_num++) {
+                u[dim_num]=Eigen::Matrix<mbsolve::complex, 3, 3>::Zero();
+            }
+//            u[1] <<0, 0, 1.0,
+//            0, 0, 0,
+//            1.0, 0, 0;
+//            u[1] = u[1] * mbsolve::E0 * 9.2374e-11;
 
             d_init << 1, 0, 0,
                 0, 0, 0,
@@ -278,7 +289,11 @@ int main(int argc, char **argv)
 
             } else {
                 /* Ziolkowski setup in new 2-lvl desc */
-
+                if (dim==2) {
+                    solver_method=solver_method+"-2d";
+                }else if (dim==3){
+                    solver_method=solver_method+"-3d";
+                }
                 Eigen::Matrix<mbsolve::complex, 2, 2> H, *u, d_init;
 
                 H <<-0.5, 0,
@@ -289,6 +304,10 @@ int main(int argc, char **argv)
                 u[0] <<0, 1.0,
                     1.0, 0;
                 u[0] = u[0] * mbsolve::E0 * 6.24e-11 * (-1.0);
+                for (unsigned int dim_num=1; dim_num<dim; dim_num++) {
+                    u[dim_num]=Eigen::Matrix<mbsolve::complex, 2, 2>::Zero();
+                }
+                
                 d_init << 1, 0,
                     0, 0;
                 qm = std::make_shared<mbsolve::qm_desc_clvl<2> >
@@ -314,9 +333,10 @@ int main(int argc, char **argv)
             /* default settings */
             for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
                 if (num_gridpoints[dim_num] == 0) {
-                    num_gridpoints[dim_num] = 32768;
+                    num_gridpoints[dim_num] = 50;
                 }
             }
+            
             if (sim_endtime < 1e-21) {
                 sim_endtime = 200e-15;
             }
@@ -342,6 +362,11 @@ int main(int argc, char **argv)
 
             if (solver_method == "openmp-2lvl-os-red") {
                 /* 2-lvl description */
+                if (dim==2) {
+                    solver_method=solver_method+"-2d";
+                }else if (dim==3){
+                    solver_method=solver_method+"-3d";
+                }
                 Eigen::Matrix<mbsolve::complex, 2, 2> H;
                 Eigen::Matrix<mbsolve::complex, 2, 2> *u_gain, *u_abs;
                 Eigen::Matrix<mbsolve::complex, 2, 2> d_init;
@@ -358,6 +383,10 @@ int main(int argc, char **argv)
                 u_gain[0] = u_gain[0] * mbsolve::E0 * 2e-9;
                 u_abs[0] << 0, 1.0, 1.0, 0;
                 u_abs[0] = u_abs[0] * mbsolve::E0 * 6e-9;
+                for (unsigned int dim_num=1; dim_num<dim; dim_num++) {
+                    u_gain[dim_num]=Eigen::Matrix<mbsolve::complex, 2, 2>::Zero();
+                    u_abs[dim_num]=Eigen::Matrix<mbsolve::complex, 2, 2>::Zero();
+                }
 
                 /* initial value density matrix */
                 d_init << 0.5, 0.001,
