@@ -590,19 +590,25 @@ update_fdtd(unsigned int size, unsigned int border,
 #pragma omp simd aligned(t_d, t_e, t_p, t_h, t_mat_indices : ALIGN)
     for (int i = border; i < size - border - 1; i++) {
         int mat_idx = t_mat_indices[i];
-        for (unsigned int y=0; y<grid.num[1]-0; y++) {
-            for (unsigned int z=0; z<grid.num[2]-0; z++) {
+        for (unsigned int y=1; y<grid.num[1]-1; y++) {
+            for (unsigned int z=1; z<grid.num[2]-1; z++) {
                 Eigen::Matrix<real, dim, 1> j = l_sim_consts[mat_idx].sigma * t_e[grid.ind[i][y][z]];
-
-                t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE *
-                    (-j[0] - t_p[grid.ind[i][y][z]][0] + (t_h[grid.ind[i+1][y][z]][0] - t_h[grid.ind[i][y][z]][0]) *
-                     l_sim_consts[mat_idx].d_r_inv[0]);
-//                t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE *
-//                    (-j[0] - t_p[grid.ind[i][y][z]][0] + (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1]) *
-//                     l_sim_consts[mat_idx].d_r_inv[0]);
-//                t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE *
-//                (-j[1] - t_p[grid.ind[i][y][z]][1] + (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0]) *
-//                 l_sim_consts[mat_idx].d_r_inv[1]);
+                switch (dim) {
+                    case 2:
+                        t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE *
+                        (-j[0] - t_p[grid.ind[i][y][z]][0] + (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1]) *
+                         l_sim_consts[mat_idx].d_r_inv[0]);
+                        t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE *
+                        (-j[1] - t_p[grid.ind[i][y][z]][1] + (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0]) *
+                         l_sim_consts[mat_idx].d_r_inv[1]);
+                        break;
+                        
+                    default:
+                        t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE *
+                            (-j[0] - t_p[grid.ind[i][y][z]][0] + (t_h[grid.ind[i+1][y][z]][0] - t_h[grid.ind[i][y][z]][0]) *
+                             l_sim_consts[mat_idx].d_r_inv[0]);
+                        break;
+                }
             }
         }
         /*
@@ -626,11 +632,18 @@ update_h(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
         int mat_idx = t_mat_indices[i];
 
         if (i >= border + 1) {
-            for (unsigned int y=0; y<grid.num[1]-0; y++) {
-                for (unsigned int z=0; z<grid.num[2]-0; z++) {
-//                    t_h[grid.ind[i][y][z]][0] -= l_sim_consts[mat_idx].M_CH * (t_e[grid.ind[i][y][z]][1] - t_e[grid.ind[i][y - 1][z]][1]); //x //change M_CH
-//                    t_h[grid.ind[i][y][z]][1] -= l_sim_consts[mat_idx].M_CH * (t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i - 1][y][z]][0]); //z
-                    t_h[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CH * (t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i-1][y][z]][0]) *  l_sim_consts[mat_idx].d_r_inv[0];
+            for (unsigned int y=1; y<grid.num[1]-1; y++) {
+                for (unsigned int z=1; z<grid.num[2]-1; z++) {
+                    switch (dim) {
+                        case 2:
+                            t_h[grid.ind[i][y][z]][0] -= l_sim_consts[mat_idx].M_CH * (t_e[grid.ind[i][y][z]][1] - t_e[grid.ind[i][y-1][z]][1]) * l_sim_consts[mat_idx].d_r_inv[1]; //x //change M_CH
+                            t_h[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CH * (t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i-1][y][z]][0]) * l_sim_consts[mat_idx].d_r_inv[0]; //z
+                            break;
+                            
+                        default:
+                            t_h[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CH * (t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i-1][y][z]][0]) *  l_sim_consts[mat_idx].d_r_inv[0];
+                            break;
+                    }
                 }
             }
         }
@@ -896,14 +909,14 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
                     if (tid == 0) {
                         for (unsigned int y=0; y<grid.num[1]; y++) {
                             for (unsigned int z=0; z<grid.num[2]; z++) {
-                                    t_h[grid.ind[OL][y][z]][0] = 0;
+                                t_h[grid.ind[OL][y][z]] = Eigen::Matrix<real, dim, 1>::Zero();
                             }
                         }
                     }
                     if (tid == P - 1) {
                         for (unsigned int y=0; y<grid.num[1]; y++) {
                             for (unsigned int z=0; z<grid.num[2]; z++) {
-                                t_h[grid.ind[OL + chunk][y][z]][0] = 0;
+                                t_h[grid.ind[OL + chunk][y][z]] = Eigen::Matrix<real, dim, 1>::Zero();
                             }
                         }
                     }
@@ -925,19 +938,19 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
                                 int idx = base_idx + i;
                                 if ((idx >= pos) && (idx < pos + cols)) {
                                     if (t == record::type::electric) {
-                                        m_result_scratch[off_r + i] = t_e[grid.ind[i][grid.num[1]/2][0]][0];
+                                        m_result_scratch[off_r + i] = t_e[grid.ind[i][grid.num[1]/2][grid.num[2]/2]][0];
                                     } else if (t == record::type::magnetic) {
-                                        m_result_scratch[off_r + i] = t_h[grid.ind[i][grid.num[1]/2][0]][0];
+                                        m_result_scratch[off_r + i] = t_h[grid.ind[i][grid.num[1]/2][grid.num[2]/2]][0];
                                     } else if (t == record::type::inversion) {
                                         m_result_scratch[off_r + i] =
-                                            t_d[grid.ind[i][grid.num[1]/2][0]](num_lvl * (num_lvl - 1));
+                                            t_d[grid.ind[i][grid.num[1]/2][grid.num[2]/2]](num_lvl * (num_lvl - 1));
                                     } else if (t == record::type::density) {
 
                                         /* right now only populations */
                                         real temp = 1.0/num_lvl;
                                         for (int l = num_lvl * (num_lvl - 1);
                                              l < num_adj; l++) {
-                                            temp += 0.5 * t_d[grid.ind[i][grid.num[1]/2][0]](l) *
+                                            temp += 0.5 * t_d[grid.ind[i][grid.num[1]/2][grid.num[2]/2]](l) *
                                                 m_generators[l](ridx, cidx).real();
                                         }
                                         m_result_scratch[off_r + i] = temp;

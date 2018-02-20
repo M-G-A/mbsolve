@@ -33,7 +33,11 @@
 namespace mbsolve {
 
 static solver_factory<solver_openmp_clvl_rk<2> > f2("openmp-2lvl-rk");
+static solver_factory<solver_openmp_clvl_rk<2> > f2_2("openmp-2lvl-rk-2d");
+static solver_factory<solver_openmp_clvl_rk<2> > f2_3("openmp-2lvl-rk-3d");
 static solver_factory<solver_openmp_clvl_rk<3> > f3("openmp-3lvl-rk");
+static solver_factory<solver_openmp_clvl_rk<3> > f3_2("openmp-3lvl-rk-2d");
+static solver_factory<solver_openmp_clvl_rk<3> > f3_3("openmp-3lvl-rk-3d");
 
 /* redundant calculation overlap */
 #ifdef XEON_PHI_OFFLOAD

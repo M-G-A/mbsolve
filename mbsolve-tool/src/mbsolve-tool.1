@@ -15,7 +15,7 @@ mbsolve-tool - A scientific tool for solving the coupled Maxwell and Liouville-V
 .I endtime
 .B ] [-D
 .I dimension
-.B ] [-g
+.B ] [-x,-y,-z
 .I "grid#"
 .B ] [-w
 .I "writer"
@@ -60,9 +60,8 @@ The mbsolve-tool is a shell programm written in c++. It is a lightweight tool fo
     Set the dimension of the simulation
 
 .PP
-.B -g
-    Set the number of discretization points int the first direction
-." ToDo: option for all dimensions
+.B -x,-y,-z
+    Set the number of discretization points int the x,y,z-direction
 
 .PP
 .B -w

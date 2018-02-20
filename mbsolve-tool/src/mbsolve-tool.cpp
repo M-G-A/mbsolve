@@ -39,8 +39,7 @@ static std::string solver_method;
 static std::string writer_method;
 static mbsolve::real sim_endtime;
 static unsigned int dim;
-static unsigned int num_gridpoint;
-static unsigned int *num_gridpoints;
+static unsigned int num_gridpoints[3];
 
 static void parse_args(int argc, char **argv)
 {
@@ -58,8 +57,12 @@ static void parse_args(int argc, char **argv)
 	 "Set writer")
         ("endtime,e", po::value<mbsolve::real>(&sim_endtime),
          "Set simulation end time")
-        ("gridpoints,g", po::value<unsigned int>(&num_gridpoint),
-         "Set number of spatial grid points")
+        ("x-gridpoints,x", po::value<unsigned int>(&num_gridpoints[0]),
+         "Set number of spatial grid points in x direction")
+        ("y-gridpoints,y", po::value<unsigned int>(&num_gridpoints[1]),
+         "Set number of spatial grid points in y direction")
+        ("z-gridpoints,z", po::value<unsigned int>(&num_gridpoints[2]),
+         "Set number of spatial grid points in z direction")
         ("Dimension,D", po::value<unsigned int>(&dim),
          "Set dimension");
 
@@ -85,17 +88,7 @@ static void parse_args(int argc, char **argv)
         scenario_file = vm["scenario"].as<std::string>();
         std::cout << "Using scenario file " << scenario_file << std::endl;
     }
-    if (vm.count("Dimension")) {
-        num_gridpoints = new unsigned int [dim];
-    }
-    else{
-        dim=1;
-        num_gridpoints = new unsigned int [dim];
-    }
     std::cout << "simulating in "<< dim << "D" << std::endl;
-    if (vm.count("gridpoints")) {
-        num_gridpoints[0] = num_gridpoint;
-    }
 }
 
 /* song2005 relaxation superoperator */
@@ -186,6 +179,11 @@ relax_sop_tzenov2018_gain(const Eigen::Matrix<mbsolve::complex, 2, 2>& arg)
 
 int main(int argc, char **argv)
 {
+    dim=1;
+    for (unsigned int dim_num=0; dim_num<3; dim_num++) {
+        num_gridpoints[dim_num]=3;
+    }
+    
     /* parse command line arguments */
     parse_args(argc, argv);
 
@@ -243,10 +241,8 @@ int main(int argc, char **argv)
                             ("Active region", mat_ar, 0, 150e-6));
 
            /* default settings */
-            for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
-                if (num_gridpoints[dim_num] == 0) {
-                    num_gridpoints[dim_num] = 32768;
-                }
+            if (num_gridpoints[0] == 1) {
+                num_gridpoints[0] = 32768;
             }
 
             if (sim_endtime < 1e-21) {
@@ -331,12 +327,9 @@ int main(int argc, char **argv)
                             ("Vacuum right", mat_vac, 142.5e-6, 150e-6));
 
             /* default settings */
-            for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
-                if (num_gridpoints[dim_num] == 0) {
-                    num_gridpoints[dim_num] = 50;
-                }
+            if (num_gridpoints[0] == 0) {
+                num_gridpoints[0] = 500;
             }
-            
             if (sim_endtime < 1e-21) {
                 sim_endtime = 200e-15;
             }
@@ -422,10 +415,8 @@ int main(int argc, char **argv)
                             ("Gain L", mat_gain, 0.625e-3, 1.125e-3));
 
             /* default settings */
-            for (unsigned int dim_num=0; dim_num<dim; dim_num++) {
-                if (num_gridpoints[dim_num] == 0) {
-                    num_gridpoints[dim_num] = 8912;
-                }
+            if (num_gridpoints[0] == 0) {
+                num_gridpoints[0] = 8912;
             }
             if (sim_endtime < 1e-21) {
                 sim_endtime = 2e-9;
