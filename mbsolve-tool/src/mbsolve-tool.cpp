@@ -212,13 +212,13 @@ int main(int argc, char **argv)
             mbsolve::real g = sqrt(2);
 
             u = new Eigen::Matrix<mbsolve::complex, 3, 3> [dim];
-            u[0] <<0, 1.0, g,
-                1.0, 0, 0,
-                g, 0, 0;
-            u[0] = u[0] * mbsolve::E0 * 9.2374e-11;
-            for (unsigned int dim_num=1; dim_num<dim; dim_num++) {
+            for (unsigned int dim_num=0; dim_num<dim-1; dim_num++) {
                 u[dim_num]=Eigen::Matrix<mbsolve::complex, 3, 3>::Zero();
             }
+            u[dim-1] <<0, 1.0, g,
+                1.0, 0, 0,
+                g, 0, 0;
+            u[dim-1] = u[dim-1] * mbsolve::E0 * 9.2374e-11;
 //            u[1] <<0, 0, 1.0,
 //            0, 0, 0,
 //            1.0, 0, 0;
@@ -297,12 +297,12 @@ int main(int argc, char **argv)
                 H = H * mbsolve::HBAR * 2 * M_PI * 2e14;
                 
                 u = new Eigen::Matrix<mbsolve::complex, 2, 2> [dim];
-                u[0] <<0, 1.0,
-                    1.0, 0;
-                u[0] = u[0] * mbsolve::E0 * 6.24e-11 * (-1.0);
-                for (unsigned int dim_num=1; dim_num<dim; dim_num++) {
+                for (unsigned int dim_num=0; dim_num<dim-1; dim_num++) {
                     u[dim_num]=Eigen::Matrix<mbsolve::complex, 2, 2>::Zero();
                 }
+                u[dim-1] <<0, 1.0,
+                    1.0, 0;
+                u[dim-1] = u[dim-1] * mbsolve::E0 * 6.24e-11 * (-1.0);
                 
                 d_init << 1, 0,
                     0, 0;
@@ -371,15 +371,16 @@ int main(int argc, char **argv)
 
                 u_gain = new Eigen::Matrix<mbsolve::complex, 2, 2> [dim];
                 u_abs = new Eigen::Matrix<mbsolve::complex, 2, 2> [dim];
-                /* dipole moment operator */
-                u_gain[0] << 0, 1.0, 1.0, 0;
-                u_gain[0] = u_gain[0] * mbsolve::E0 * 2e-9;
-                u_abs[0] << 0, 1.0, 1.0, 0;
-                u_abs[0] = u_abs[0] * mbsolve::E0 * 6e-9;
-                for (unsigned int dim_num=1; dim_num<dim; dim_num++) {
+                for (unsigned int dim_num=0; dim_num<dim-1; dim_num++) {
                     u_gain[dim_num]=Eigen::Matrix<mbsolve::complex, 2, 2>::Zero();
                     u_abs[dim_num]=Eigen::Matrix<mbsolve::complex, 2, 2>::Zero();
                 }
+                /* dipole moment operator */
+                u_gain[dim-1] << 0, 1.0, 1.0, 0;
+                u_gain[dim-1] = u_gain[dim-1] * mbsolve::E0 * 2e-9;
+                u_abs[dim-1] << 0, 1.0, 1.0, 0;
+                u_abs[dim-1] = u_abs[dim-1] * mbsolve::E0 * 6e-9;
+
 
                 /* initial value density matrix */
                 d_init << 0.5, 0.001,

@@ -106,16 +106,20 @@ void init_fdtd_simulation(std::shared_ptr<const device> dev,
         real velocity = 1.0/sqrt(MU0 * EPS0 * dev->get_minimum_permittivity());
 
         real d_x=0.0;
-        for (int dim_num=(scen->m_dim)-1; dim_num>=0; dim_num--) {
+        real d_x_min = 1; //ToDo: bad implementation of finding min
+        for (unsigned int dim_num=0; dim_num<scen->m_dim; dim_num++) {
             /* get number of grid points */
             unsigned int n_x = scen->get_num_gridpoints(dim_num);
 
             /* grid point size */
-            d_x = dev->get_length()/(n_x - 1);                                  //ToDo: length over dim
+            d_x = dev->get_length(dim_num)/(n_x - 1);
             scen->set_gridpoint_size(d_x, dim_num);
+            if ( d_x < d_x_min ) {
+                d_x_min = d_x;
+            }
         }
-        /* time step size - assuming denser grid in x-direction*/
-        real d_t = courant * d_x/velocity;
+        /* time step size - ToDo: smaler d_t for higher dim */
+        real d_t = courant * d_x_min/velocity;
 
         /* number of time steps */
         unsigned int n_t = ceil(scen->get_endtime()/d_t) + 1;

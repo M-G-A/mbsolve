@@ -32,6 +32,7 @@
 
 namespace mbsolve {
 
+/* struct gehört nicht hierher -> mbsolve-lib? */
 struct sim_grid{
     unsigned int ***ind;
     unsigned int *num;

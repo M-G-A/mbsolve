@@ -25,8 +25,8 @@ namespace mbsolve {
 
 scenario::scenario(unsigned int dim, const std::string& name,
                    unsigned int *num_gridpoints, real endtime) :
-    m_dim(dim), m_name(name), m_num_gridpoints(num_gridpoints), m_endtime(endtime),
-    m_dm_init_type(dm_init_type::lower_full)
+    m_dim(dim), m_name(name), m_num_gridpoints(num_gridpoints),
+    m_endtime(endtime), m_dm_init_type(dm_init_type::lower_full)
 {
     m_gridpoint_size = new real [dim];
 }

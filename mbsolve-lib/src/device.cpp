@@ -55,10 +55,14 @@ device::get_used_materials() const
 }
 
 real
-device::get_length() const {
+device::get_length(unsigned int dim_num) const {
     real total = 0.0;
     for (auto r : m_regions) {
         total += r->get_length();
+    }
+    /* device width and height - ToDo add extra-variable*/
+    if ((dim_num==1)||(dim_num==2)){
+        total=20e-6;
     }
     return total;
 }

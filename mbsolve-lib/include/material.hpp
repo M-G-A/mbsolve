@@ -173,7 +173,9 @@ public:
 
     const matrix_t& get_hamiltonian() const { return m_h; }
 
-    const matrix_t& get_dipole_op(unsigned int dim_num) const { return m_u[dim_num]; }
+    const matrix_t& get_dipole_op(unsigned int dim_num) const {
+        return m_u[dim_num];
+    }
 
     const callback_t& get_lindblad_op() const { return m_g; }
 

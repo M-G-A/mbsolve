@@ -64,7 +64,7 @@ writer_hdf5::write(const std::string& filename,
     /* attribute grid point size -- global */
     H5::Attribute a_gridpoint = file.createAttribute("gridpoint_size", h5_dbl,
                                                      space_scalar);
-    double gridpoint = scen->get_gridpoint_size();
+    double gridpoint = scen->get_gridpoint_size(0);
     a_gridpoint.write(h5_dbl, &gridpoint);
 
     /* attribute simulation end time -- global */
@@ -76,7 +76,7 @@ writer_hdf5::write(const std::string& filename,
     /* attribute grid point size -- global */
     H5::Attribute a_dev_length = file.createAttribute("dev_length", h5_dbl,
                                                       space_scalar);
-    double dev_length = dev->get_length();
+    double dev_length = dev->get_length(0);
     a_dev_length.write(h5_dbl, &dev_length);
 
     /* results */
