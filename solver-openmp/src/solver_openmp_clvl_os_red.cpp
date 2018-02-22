@@ -918,6 +918,7 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
                 if (tid == 0){
                     float perc=n*10000/(num_timesteps/OL);
                     printf("%04.1f%%:\t%9.3es\r", perc/100, n*OL*dt);
+                    fflush(stdout);
                 }
                 
                 /* handle loop remainder */
