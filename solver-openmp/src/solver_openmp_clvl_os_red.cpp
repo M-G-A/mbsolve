@@ -598,21 +598,21 @@ update_fdtd(unsigned int size, unsigned int border,
                     case 3:
                         t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE
                             * (-j[0] - t_p[grid.ind[i][y][z]][0]
-                            - (t_h[grid.ind[i][y+1][z]][2] - t_h[grid.ind[i][y][z]][2])
+                            + (t_h[grid.ind[i][y+1][z]][2] - t_h[grid.ind[i][y][z]][2])
                             * l_sim_consts[mat_idx].d_r_inv[1]      //d_yH_z
-                            + (t_h[grid.ind[i][y][z+1]][1] - t_h[grid.ind[i][y][z]][1])
+                            - (t_h[grid.ind[i][y][z+1]][1] - t_h[grid.ind[i][y][z]][1])
                             * l_sim_consts[mat_idx].d_r_inv[2]);    //d_zH_y
                         t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE
                             * (-j[1] - t_p[grid.ind[i][y][z]][1]
-                            - (t_h[grid.ind[i][y][z+1]][0] - t_h[grid.ind[i][y][z]][0])
+                            + (t_h[grid.ind[i][y][z+1]][0] - t_h[grid.ind[i][y][z]][0])
                             * l_sim_consts[mat_idx].d_r_inv[2]      //dzH_x
-                            + (t_h[grid.ind[i+1][y][z]][2] - t_h[grid.ind[i][y][z]][2])
+                            - (t_h[grid.ind[i+1][y][z]][2] - t_h[grid.ind[i][y][z]][2])
                             * l_sim_consts[mat_idx].d_r_inv[0]);    //dxHz
                         t_e[grid.ind[i][y][z]][2] += l_sim_consts[mat_idx].M_CE
                             * (-j[2] - t_p[grid.ind[i][y][z]][2]
-                            - (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1])
+                            + (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1])
                             * l_sim_consts[mat_idx].d_r_inv[0]      //dxHy
-                            + (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
+                            - (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
                             * l_sim_consts[mat_idx].d_r_inv[1]);    //dyHx
 //                        std::cout << t_e[2] << ", ";
                         break;
@@ -629,9 +629,9 @@ update_fdtd(unsigned int size, unsigned int border,
                         t_e[grid.ind[i][y][z]][0] += 0;
                         t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE
                             * (-j[1] - t_p[grid.ind[i][y][z]][1]
-                            - (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1])
+                            + (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1])
                             * l_sim_consts[mat_idx].d_r_inv[0]
-                            + (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
+                            - (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
                             * l_sim_consts[mat_idx].d_r_inv[1]);
                         break;
                         
@@ -703,7 +703,7 @@ update_h(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
                         default:
                             t_h[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CH
                                 * ((t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i-1][y][z]][0])
-                                *  l_sim_consts[mat_idx].d_r_inv[0]);
+                                * l_sim_consts[mat_idx].d_r_inv[0]);
                             break;
                     }
                 }

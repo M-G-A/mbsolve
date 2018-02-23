@@ -62,7 +62,7 @@ device::get_length(unsigned int dim_num) const {
     }
     /* device width and height - ToDo add extra-variable*/
     if ((dim_num==1)||(dim_num==2)){
-        total=20e-6;
+        total=100e-6;
     }
     return total;
 }
