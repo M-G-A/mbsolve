@@ -69,6 +69,8 @@ private:
     unsigned int m_row_idx;
 
     bool m_is_complex;
+    
+    unsigned int m_grid_num;
 
     /*TODO make members private -> friend/nested with copy_list_entry? */
 
@@ -141,7 +143,8 @@ public:
         m_record(rec)
     {
         m_dev.m_timestep = scen->get_timestep_size();
-
+        m_dev.m_grid_num = scen->get_num_gridpoints(1)*scen->get_num_gridpoints(2);
+        
         if (rec->get_interval() <= scen->get_timestep_size()) {
             m_dev.m_rows = scen->get_num_timesteps();
             m_dev.m_interval = scen->get_timestep_size();
@@ -156,11 +159,11 @@ public:
         if (rec->get_position() < 0.0) {
             /* copy complete grid */
             m_dev.m_position_idx = 0;
-            m_dev.m_cols = scen->get_num_gridpoints(0);
+            m_dev.m_cols = scen->get_num_gridpoints(0)*m_dev.m_grid_num;
         } else {
             m_dev.m_position_idx = std::round(rec->get_position()/
                                               scen->get_gridpoint_size(0));
-            m_dev.m_cols = 1;
+            m_dev.m_cols = 1*m_dev.m_grid_num;
         }
 
 	/* create result */

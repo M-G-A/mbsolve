@@ -345,8 +345,22 @@ int main(int argc, char **argv)
             scen->add_source(sech_pulse);
 
             scen->add_record(std::make_shared<mbsolve::record>
-                             ("inv12", 2.5e-15));
-            scen->add_record(std::make_shared<mbsolve::record>("e", 2.5e-15));
+                             ("inv12", 5e-15));
+            if (dim==1) {
+                scen->add_record(std::make_shared<mbsolve::record>("e_z", mbsolve::record::type::electric,1,0, 5e-15));
+                scen->add_record(std::make_shared<mbsolve::record>("h_y", mbsolve::record::type::magnetic,1,0, 5e-15));
+            }else if(dim==2) {
+                scen->add_record(std::make_shared<mbsolve::record>("e_z", mbsolve::record::type::electric,2,0, 5e-15));
+                scen->add_record(std::make_shared<mbsolve::record>("h_x", mbsolve::record::type::magnetic,1,0, 5e-15));
+                scen->add_record(std::make_shared<mbsolve::record>("h_y", mbsolve::record::type::magnetic,2,0, 5e-15));
+            }else{
+                scen->add_record(std::make_shared<mbsolve::record>("e_x", mbsolve::record::type::electric,1,0, 5e-15));
+                scen->add_record(std::make_shared<mbsolve::record>("e_y", mbsolve::record::type::magnetic,2,0, 5e-15));
+                scen->add_record(std::make_shared<mbsolve::record>("e_z", mbsolve::record::type::magnetic,3,0, 5e-15));
+                scen->add_record(std::make_shared<mbsolve::record>("h_x", mbsolve::record::type::electric,1,0, 5e-15));
+                scen->add_record(std::make_shared<mbsolve::record>("h_y", mbsolve::record::type::magnetic,2,0, 5e-15));
+                scen->add_record(std::make_shared<mbsolve::record>("h_z", mbsolve::record::type::magnetic,3,0, 5e-15));
+            }
 
         } else if (device_file == "tzenov2018-cpml") {
             /* set up quantum mechanical descriptions */
