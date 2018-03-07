@@ -99,17 +99,24 @@ writer_matlab::write(const std::string& file,
         mxSetCell(names, records, mxCreateString(r->get_name().c_str()));
         records++;
         
+        auto temp = mxComplexity::mxREAL;
+        if (r->is_complex()) {
+            temp = mxComplexity::mxCOMPLEX;
+        }
+        
         const mwSize ndim = 4;
         const mwSize dims[4]   = {scen->get_num_gridpoints(2),scen->get_num_gridpoints(1),scen->get_num_gridpoints(0),r->get_rows()};
         mxArray *var=mxCreateNumericArray( ndim,
                                            dims,
                                            mxDOUBLE_CLASS,
-                                           mxREAL);
+                                           temp);
         auto data_real = r->get_data_real().cbegin();
-//        auto data_imag = r->get_data_imag().cbegin();
-
         std::copy(data_real, data_real + r->get_count(), mxGetPr(var));
-//        std::copy(data_real, data_real + r->get_count(), mxGetPi(var));
+        
+        if (r->is_complex()) {
+            auto data_imag = r->get_data_imag().cbegin();
+            std::copy(data_imag, data_imag + r->get_count(), mxGetPi(var));
+        }
 
         matPutVariable(pmat, r->get_name().c_str(), var);
 
