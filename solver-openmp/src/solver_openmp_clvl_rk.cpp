@@ -354,7 +354,7 @@ solver_openmp_clvl_rk<num_lvl>::solver_openmp_clvl_rk
     for (const auto& src : scen->get_sources()) {
         sim_source s;
         s.type = src->get_type();
-        s.x_idx = src->get_position()/scen->get_gridpoint_size(0);
+        s.x_idx[0] = src->get_position(0)/scen->get_gridpoint_size(0);
         s.data_base_idx = base_idx;
         m_sim_sources.push_back(s);
 
@@ -593,7 +593,7 @@ apply_sources_rk(real *t_e, real *source_data, unsigned int num_sources,
               unsigned int base_pos, unsigned int chunk)
 {
     for (unsigned int k = 0; k < num_sources; k++) {
-        int at = l_sim_sources[k].x_idx - base_pos + OL;
+        int at = l_sim_sources[k].x_idx[0] - base_pos + OL;
         if ((at > 0) && (at < chunk + 2 * OL)) {
             real src = source_data[l_sim_sources[k].data_base_idx + time];
             if (l_sim_sources[k].type == source::type::hard_source) {

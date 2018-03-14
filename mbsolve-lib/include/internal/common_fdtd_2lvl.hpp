@@ -132,7 +132,7 @@ class sim_source
 {
 public:
     source::type type;
-    unsigned int x_idx;
+    unsigned int x_idx[3];
     unsigned int data_base_idx;
 };
 

@@ -181,7 +181,7 @@ solver_int(dev, scen)
     for (const auto& src : scen->get_sources()) {
         sim_source s;
         s.type = src->get_type();
-        s.x_idx = src->get_position()/scen->get_gridpoint_size(0);
+        s.x_idx[0] = src->get_position(0)/scen->get_gridpoint_size(0);
         s.data_base_idx = base_idx;
         m_sim_sources.push_back(s);
 
@@ -253,9 +253,9 @@ solver_openmp_2lvl_os::run() const
               for (const auto& src : m_sim_sources) {
                   /* TODO: support other source types than hard sources */
                   if (src.type == source::type::hard_source) {
-                      m_e[src.x_idx] = m_source_data[src.data_base_idx + n];
+                      m_e[src.x_idx[0]] = m_source_data[src.data_base_idx + n];
                   } else if (src.type == source::type::soft_source) {
-                      m_e[src.x_idx] += m_source_data[src.data_base_idx + n];
+                      m_e[src.x_idx[0]] += m_source_data[src.data_base_idx + n];
                   } else {
                   }
               }
