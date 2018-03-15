@@ -181,7 +181,7 @@ int main(int argc, char **argv)
 {
     dim=1;
     for (unsigned int dim_num=0; dim_num<3; dim_num++) {
-        num_gridpoints[dim_num]=3;
+        num_gridpoints[dim_num]=1;
     }
     
     /* parse command line arguments */
@@ -193,14 +193,23 @@ int main(int argc, char **argv)
 
         std::shared_ptr<mbsolve::device> dev;
         std::shared_ptr<mbsolve::scenario> scen;
+        
+        double dt=25e-15;
+        double position[3]={-2,50e-6,-1};
+        
+        /* source */
+        double pol[3]={0.0,1,0.0};
+        double source_pos[3]={0.0,0.5,0.0};
+        double sigma=0.1;
+        double A = 1;//use 5e-6 for gaussian-beam;
+        double f = 1;
+        int s = 1; //0=line,1=gaussian,2=gaussian-beam - source
+        int n = 2; //gaussian-beam mode
+        int m = 0; //gaussian-beam mode
+        
 
         if (device_file == "song2005") {
             /* Song setup */
-            if (dim==2) {
-                solver_method=solver_method+"-2d";
-            }else if (dim==3){
-                solver_method=solver_method+"-3d";
-            }
             Eigen::Matrix<mbsolve::complex, 3, 3> H, *u, d_init;
 
             H <<0, 0, 0,
@@ -253,22 +262,34 @@ int main(int argc, char **argv)
             scen = std::make_shared<mbsolve::scenario>
                 (dim, "Basic", num_gridpoints, sim_endtime);
 
-            auto sech_pulse = std::make_shared<mbsolve::sech_pulse>
-                ("sech", 0.0, mbsolve::source::hard_source, 3.5471e9,
-                 3.8118e14, 17.248, 1.76/5e-15, -M_PI/2);
-            scen->add_source(sech_pulse);
+            if (s == 0) {
+                auto source = std::make_shared<mbsolve::sech_pulse>
+                ("sech", source_pos, mbsolve::source::hard_source, pol, A*3.5471e9,
+                 f*3.8118e14, 17.248, 1.76/5e-15, -M_PI/2);
+                scen->add_source(source);
+            } else if (s == 1) {
+                auto source = std::make_shared<mbsolve::gauss>
+                //("sech", 0.0, mbsolve::source::hard_source, 4.2186e9/2, 2e14,
+                ("sech", source_pos, mbsolve::source::hard_source, pol, A*3.5471e9, f*3.8118e14,
+                 17.248, sigma, 1.76/5e-15, -M_PI/2);
+                scen->add_source(source);
+            } else {
+                auto source = std::make_shared<mbsolve::gauss_beam>
+                //("sech", 0.0, mbsolve::source::hard_source, 4.2186e9/2, 2e14,
+                ("gauss_beam", source_pos, mbsolve::source::hard_source, pol, A*3.5471e9, f*3.8118e14,
+                 17.248, sigma, n, m);
+                scen->add_source(source);
+            }
 
             scen->add_record(std::make_shared<mbsolve::record>
                              ("d11", mbsolve::record::type::density, 1, 1,
-                              0, 0));
+                              dt, position));
             scen->add_record(std::make_shared<mbsolve::record>
                              ("d22", mbsolve::record::type::density, 2, 2,
-                              0, 0));
+                              dt, position));
             scen->add_record(std::make_shared<mbsolve::record>
                              ("d33", mbsolve::record::type::density, 3, 3,
-                              0, 0));
-            scen->add_record(std::make_shared<mbsolve::record>("e", 0, 0.0));
-
+                              dt, position));
 
         } else if (device_file == "ziolkowski1995") {
             /* set up quantum mechanical description */
@@ -285,11 +306,6 @@ int main(int argc, char **argv)
 
             } else {
                 /* Ziolkowski setup in new 2-lvl desc */
-                if (dim==2) {
-                    solver_method=solver_method+"-2d";
-                }else if (dim==3){
-                    solver_method=solver_method+"-3d";
-                }
                 Eigen::Matrix<mbsolve::complex, 2, 2> H, *u, d_init;
 
                 H <<-0.5, 0,
@@ -300,6 +316,9 @@ int main(int argc, char **argv)
                 for (unsigned int dim_num=0; dim_num<dim-1; dim_num++) {
                     u[dim_num]=Eigen::Matrix<mbsolve::complex, 2, 2>::Zero();
                 }
+//                u[dim-2] <<0, 1.0,
+//                1.0, 0;
+//                u[dim-2] = u[dim-2] * mbsolve::E0 * 6.24e-11 * (-1.0);
                 u[dim-1] <<0, 1.0,
                     1.0, 0;
                 u[dim-1] = u[dim-1] * mbsolve::E0 * 6.24e-11 * (-1.0);
@@ -327,7 +346,7 @@ int main(int argc, char **argv)
                             ("Vacuum right", mat_vac, 142.5e-6, 150e-6));
 
             /* default settings */
-            if (num_gridpoints[0] == 0) {
+            if (num_gridpoints[0] == 1) {
                 num_gridpoints[0] = 500;
             }
             if (sim_endtime < 1e-21) {
@@ -338,29 +357,27 @@ int main(int argc, char **argv)
             scen = std::make_shared<mbsolve::scenario>
                 (dim, "Basic", num_gridpoints, sim_endtime);
 
-            auto sech_pulse = std::make_shared<mbsolve::sech_pulse>
+            if (s == 0) {
+                auto source = std::make_shared<mbsolve::sech_pulse>
                 //("sech", 0.0, mbsolve::source::hard_source, 4.2186e9/2, 2e14,
-                ("sech", 0.0, mbsolve::source::hard_source, 4.2186e9, 2e14,
+                ("sech", source_pos, mbsolve::source::hard_source, pol, A*4.2186e9, f*2e14,
                  10, 2e14);
-            scen->add_source(sech_pulse);
-
-            scen->add_record(std::make_shared<mbsolve::record>
-                             ("inv12", 5e-15));
-            if (dim==1) {
-                scen->add_record(std::make_shared<mbsolve::record>("e_z", mbsolve::record::type::electric,1,0, 5e-15));
-                scen->add_record(std::make_shared<mbsolve::record>("h_y", mbsolve::record::type::magnetic,1,0, 5e-15));
-            }else if(dim==2) {
-                scen->add_record(std::make_shared<mbsolve::record>("e_z", mbsolve::record::type::electric,2,0, 5e-15));
-                scen->add_record(std::make_shared<mbsolve::record>("h_x", mbsolve::record::type::magnetic,1,0, 5e-15));
-                scen->add_record(std::make_shared<mbsolve::record>("h_y", mbsolve::record::type::magnetic,2,0, 5e-15));
+                scen->add_source(source);
+            } else if (s == 1) {
+                auto source = std::make_shared<mbsolve::gauss>
+                ("gauss", source_pos, mbsolve::source::hard_source, pol, A*4.2186e9, f*2e14,
+                 10, sigma, 2e14);
+                scen->add_source(source);
             }else{
-                scen->add_record(std::make_shared<mbsolve::record>("e_x", mbsolve::record::type::electric,1,0, 5e-15));
-                scen->add_record(std::make_shared<mbsolve::record>("e_y", mbsolve::record::type::magnetic,2,0, 5e-15));
-                scen->add_record(std::make_shared<mbsolve::record>("e_z", mbsolve::record::type::magnetic,3,0, 5e-15));
-                scen->add_record(std::make_shared<mbsolve::record>("h_x", mbsolve::record::type::electric,1,0, 5e-15));
-                scen->add_record(std::make_shared<mbsolve::record>("h_y", mbsolve::record::type::magnetic,2,0, 5e-15));
-                scen->add_record(std::make_shared<mbsolve::record>("h_z", mbsolve::record::type::magnetic,3,0, 5e-15));
+                auto source = std::make_shared<mbsolve::gauss_beam>
+                ("gauss_beam", source_pos, mbsolve::source::hard_source, pol, A*4.2186e9, f*2e14,
+                 10, sigma, n, m);
+                scen->add_source(source);
             }
+            
+            
+            scen->add_record(std::make_shared<mbsolve::record>
+                             ("inv12", dt, position));
 
         } else if (device_file == "tzenov2018-cpml") {
             /* set up quantum mechanical descriptions */
@@ -369,11 +386,6 @@ int main(int argc, char **argv)
 
             if (solver_method == "openmp-2lvl-os-red") {
                 /* 2-lvl description */
-                if (dim==2) {
-                    solver_method=solver_method+"-2d";
-                }else if (dim==3){
-                    solver_method=solver_method+"-3d";
-                }
                 Eigen::Matrix<mbsolve::complex, 2, 2> H;
                 Eigen::Matrix<mbsolve::complex, 2, 2> *u_gain, *u_abs;
                 Eigen::Matrix<mbsolve::complex, 2, 2> d_init;
@@ -442,17 +454,54 @@ int main(int argc, char **argv)
                 (dim, "basic", num_gridpoints, sim_endtime);
 
             scen->add_record(std::make_shared<mbsolve::record>
-                             ("inv12", 1e-12));
-            scen->add_record(std::make_shared<mbsolve::record>("e", 1e-12));
-            scen->add_record(std::make_shared<mbsolve::record>
-                             ("e0", mbsolve::record::electric, 1, 1, 0.0,
-                              0.0));
-            scen->add_record(std::make_shared<mbsolve::record>
-                             ("h0", mbsolve::record::magnetic, 1, 1, 0.0,
-                              1.373e-7));
+                             ("inv12", dt, position));
+        } else if (device_file == "abundis2018-cpml") {
         } else {
             throw std::invalid_argument("Specified device not found!");
         }
+        
+        
+        if (dim==1) {
+            scen->add_record(std::make_shared<mbsolve::record>("e_z",
+                    mbsolve::record::type::electric,1,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("h_y",
+                    mbsolve::record::type::magnetic,1,0, dt, position));
+        }else if(dim==2) {
+//            scen->add_record(std::make_shared<mbsolve::record>("e_y",
+//                    mbsolve::record::type::electric,1,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("e_z",
+                    mbsolve::record::type::electric,2,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("h_x",
+                    mbsolve::record::type::magnetic,1,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("h_y",
+                    mbsolve::record::type::magnetic,2,0, dt, position));
+        }else{
+            scen->add_record(std::make_shared<mbsolve::record>("e_x",
+                    mbsolve::record::type::electric,1,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("e_y",
+                    mbsolve::record::type::electric,2,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("e_z",
+                    mbsolve::record::type::electric,3,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("h_x",
+                    mbsolve::record::type::magnetic,1,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("h_y",
+                    mbsolve::record::type::magnetic,2,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("h_z",
+                    mbsolve::record::type::magnetic,3,0, dt, position));
+        }
+        if ((solver_method == "openmp-2lvl-os-red")||
+            (solver_method == "openmp-3lvl-os-red")){
+            if (dim==2) {
+                solver_method=solver_method+"-2d";
+            }else if (dim==3){
+                solver_method=solver_method+"-3d";
+            }
+        } else {
+            if (dim>1) {
+                std::cout << "Dimension-argument beeing ignored. Solver methode only implemented in 1D" << std::endl;
+            }
+        }
+        
 	/* tic */
 	timer.start();
 
