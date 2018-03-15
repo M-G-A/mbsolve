@@ -3,9 +3,9 @@ clear;
 [filename, folder] = uigetfile('../../*.mat', 'Select result data');
 load(fullfile(folder, filename));
 %% init data
-x = 0:GridPointSize(1)*2:DeviceDimension(1);
+x = linspace(0,DeviceDimension(1),size(e_z,3));
 if Dimension>1
-    y = 0:GridPointSize(2)*2:DeviceDimension(2);
+    y = linspace(0,DeviceDimension(2),size(e_z,2));
 else
     y=1;
 end
