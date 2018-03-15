@@ -57,13 +57,13 @@ protected:
 
     type m_type;
     
-    real m_pol[3]={0,1,0};
+    real *m_pol;
 
 public:
 
-    source(const std::string& name, real *position, type source_type,
+    source(const std::string& name, real *position, type source_type, real *pol,
            real ampl, real freq, real phase = 0) :
-        m_name(name), m_position(position), m_type(source_type),
+        m_name(name), m_position(position), m_type(source_type), m_pol(pol),
         m_ampl(ampl), m_freq(freq), m_phase(phase)
     {
     }
@@ -135,10 +135,11 @@ private:
 
 public:
     sech_pulse(const std::string& name, real *position, type source_type,
+               real *pol,
                real ampl, real freq,
                real phase,
                real beta, real phase_sin = 0.0) :
-        source(name, position, source_type, ampl, freq, phase), m_beta(beta),
+        source(name, position, source_type, pol, ampl, freq, phase), m_beta(beta),
         m_phase_sin(phase_sin)
     {
     }
@@ -151,7 +152,7 @@ public:
         if ((pow(y-m_position[1],2)<0.01) && (pow(z-m_position[2],2)<0.01)) {
             
         }
-        return ret;
+        return ret*m_pol[dim_num];
     }
 
 };
@@ -163,18 +164,18 @@ private:
 
 public:
     single_cycle_pulse(const std::string& name, real *position,
-                       type source_type,
+                       type source_type, real *pol,
                        real ampl, real freq,
                        real phase,
                        real beta) :
-        source(name, position, source_type, ampl, freq, phase), m_beta(beta)
+        source(name, position, source_type, pol, ampl, freq, phase), m_beta(beta)
     {
     }
 
     real calc_value(real t, unsigned int dim_num, real y, real z) const
     {
         return 1/std::cosh(m_beta * (t - m_phase)) *
-            sin(2 * M_PI * m_freq * (t - m_phase - 1/(m_freq * 4)));
+            sin(2 * M_PI * m_freq * (t - m_phase - 1/(m_freq * 4)))*m_pol[dim_num];
     }
 
 };
@@ -188,22 +189,26 @@ private:
     real m_phase_sin;
 
 public:
-    gauss(const std::string& name, real *position, type source_type,
+    gauss(const std::string& name, real *position, type source_type, real *pol,
                real ampl, real freq,
                real phase, real sigma, real beta, real phase_sin = 0.0) :
-        source(name, position, source_type, ampl, freq, phase), m_sigma(sigma),
+        source(name, position, source_type, pol, ampl, freq, phase), m_sigma(sigma),
         m_beta(beta), m_phase_sin(phase_sin)
     {
     }
 
-    real calc_value(real t, unsigned int dim_num, real y, real z) const
+    real calc_value(real t, unsigned int dim_num, real y_p, real z_p) const
     {
-        real ret = 0.0;
-        real inter = y - m_position[1];
+        real ret;
+        real y = y_p - m_position[1];
+        real z = z_p - m_position[2];
+        
         ret = 1/std::cosh(m_beta * t - m_phase) * sin(2 * M_PI * m_freq * t - m_phase_sin);
         ret *= 1/(std::sqrt(2*M_PI*pow(m_sigma,2)))*
-        std::exp(-1*pow(inter,2)/(2*pow(m_sigma,2)));
-//            if ((dim_num == 1) && (t==0)){ std::cout << m_sigma << std::endl;}
+        std::exp(-1*pow(y,2)/(2*pow(m_sigma,2)));
+        ret *= 1/(std::sqrt(2*M_PI*pow(m_sigma,2)))*
+        std::exp(-1*pow(z,2)/(2*pow(m_sigma,2)));
+        
         return ret*m_pol[dim_num];
     }
 
@@ -237,10 +242,10 @@ private:
     }
 
 public:
-    gauss_beam(const std::string& name, real *position, type source_type,
+    gauss_beam(const std::string& name, real *position, type source_type, real *pol,
                real ampl, real freq, real phase, real min_width,
                int mode_n = 1, int mode_m = 1, real z = 1) :
-        source(name, position, source_type, ampl, freq, phase), m_w_0(min_width),
+        source(name, position, source_type, pol, ampl, freq, phase), m_w_0(min_width),
         m_n(mode_n), m_m(mode_m), m_z(z)
     {
         m_lamda = 299792458 / m_freq; // / std::sqrt(mu_r*eps_r);
@@ -253,20 +258,19 @@ public:
     {
         complex ret;
         complex i = complex(0.0,1.0);//sqrt(-1);
-        real z = 1;
-        real x = (y_p - m_position[1]);
-        real y = (z_p - m_position[2]);
+        real y = y_p - m_position[1];
+        real z = z_p - m_position[2];
         
-        real m_w = m_w_0 * std::sqrt(1+pow(z/m_z_0,2));
-        real m_zeta = std::atan(z/m_z_0);
-        real m_R = z * (1+pow(m_z_0/z,2));
+        real m_w = m_w_0 * std::sqrt(1+pow(m_z/m_z_0,2));
+        real m_zeta = std::atan(m_z/m_z_0);
+        real m_R = m_z * (1+pow(m_z_0/m_z,2));
         real m_k = 2 * M_PI/m_lamda;
         
-        ret = m_ampl * m_w_0/m_w * hermite(M_SQRT2*x/m_w,m_n)
-            * hermite(M_SQRT2*y/m_w,m_m)
-            * std::exp(-(pow(x,2)+pow(y,2))/pow(m_w,2))
-            * std::exp(- i*m_k*(pow(x,2) + pow(y,2))/(2*m_R))
-            * std::exp(- i * m_k * z)
+        ret = m_ampl * m_w_0/m_w * hermite(M_SQRT2*y/m_w,m_n)
+            * hermite(M_SQRT2*z/m_w,m_m)
+            * std::exp(-(pow(y,2)+pow(z,2))/pow(m_w,2))
+            * std::exp(- i*m_k*(pow(y,2) + pow(z,2))/(2*m_R))
+            * std::exp(- i * m_k * m_z)
             * std::exp(i * ((real)(m_n+m_m+1)) * m_zeta)
             * std::exp(i* m_k * 299792458.0 * t);
 //        std::cout << ret << "; ";

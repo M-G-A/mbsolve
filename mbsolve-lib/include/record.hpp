@@ -45,17 +45,17 @@ private:
     unsigned int m_col;
     unsigned int m_row;
 
-    real m_position;
+    real *m_position;
 
     real m_interval;
 
     bool m_is_complex;
 
 public:
-    record(const std::string& name, real interval = 0.0, real position = -1.0);
+    record(const std::string& name, real interval = 0.0, real *position = NULL);
 
     record(const std::string& name, type record_type, unsigned int row_idx,
-           unsigned int col_idx, real interval = 0.0, real position = -1.0);
+           unsigned int col_idx, real interval = 0.0, real *position = NULL);
 
     const std::string& get_name() const { return m_name; }
 
@@ -65,7 +65,9 @@ public:
 
     unsigned int get_row() const { return m_row; }
 
-    real get_position() const { return m_position; }
+    real get_position(unsigned int dim_num = 0) const {
+        return m_position[dim_num];
+    }
 
     real get_interval() const { return m_interval; }
 

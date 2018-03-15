@@ -57,9 +57,9 @@ private:
     unsigned int m_offset_scratch_imag;
 
     unsigned int m_rows;
-    unsigned int m_cols;
+    unsigned int m_cols=1;
     real m_interval_ratio;
-    unsigned int m_position_idx;
+    int m_position_idx[3];
 
     real m_timestep;
     real m_interval;
@@ -70,7 +70,7 @@ private:
 
     bool m_is_complex;
     
-    unsigned int m_grid_num;
+    unsigned int m_grid_num[3] = {1,1,1};
 
     /*TODO make members private -> friend/nested with copy_list_entry? */
 
@@ -80,6 +80,27 @@ public:
         int next = floor(m_interval_ratio * (iteration + 0));
 
         return (last != next);
+    }
+    
+    __mb_on_device unsigned int has2rec_r(unsigned int x, unsigned int y, unsigned int z, unsigned int t) const {
+        unsigned int ret = 1;
+        unsigned int ratio[3] = {x,y,z};
+//(x >= m_position_idx[0]+2) && (x < m_position_idx[0]+2 + m_cols) &&
+        for (unsigned int dim_num=0; dim_num<3; dim_num++) {
+            if (m_position_idx[dim_num]<0) {
+                ret = (ratio[dim_num]%(-m_position_idx[dim_num])==0) ? ret : 0;
+                ratio[dim_num] = -m_position_idx[dim_num];
+            } else {
+                ret = (ratio[dim_num] == m_position_idx[dim_num]) ? ret : 0;
+                ratio[dim_num] = m_position_idx[dim_num];
+            }
+        }
+        if (ret == 1) {
+            ret=1+get_offset_scratch_real(t)+x/ratio[0]
+                *(m_grid_num[1]*m_grid_num[2])+y/ratio[1]
+                *m_grid_num[2]+z/ratio[2];
+        }
+        return ret;
     }
 
     __mb_on_device bool is_complex() const {
@@ -99,7 +120,7 @@ public:
     }
 
     __mb_on_device unsigned int get_position() const {
-        return m_position_idx;
+        return m_position_idx[0];
     }
 
     __mb_on_device unsigned int get_cols() const {
@@ -143,7 +164,6 @@ public:
         m_record(rec)
     {
         m_dev.m_timestep = scen->get_timestep_size();
-        m_dev.m_grid_num = scen->get_num_gridpoints(1)*scen->get_num_gridpoints(2);
         
         if (rec->get_interval() <= scen->get_timestep_size()) {
             m_dev.m_rows = scen->get_num_timesteps();
@@ -156,19 +176,21 @@ public:
                 rec->get_interval();
         }
 
-        if (rec->get_position() < 0.0) {
-            /* copy complete grid */
-            m_dev.m_position_idx = 0;
-            m_dev.m_cols = scen->get_num_gridpoints(0)*m_dev.m_grid_num;
-        } else {
-            m_dev.m_position_idx = std::round(rec->get_position()/
-                                              scen->get_gridpoint_size(0));
-            m_dev.m_cols = 1*m_dev.m_grid_num;
+        for (unsigned int dim_num=0; dim_num<3; dim_num++) {
+            if (rec->get_position(dim_num) < 0.0) {
+                /* copy complete grid */
+                m_dev.m_position_idx[dim_num] = rec->get_position(dim_num);
+                m_dev.m_grid_num[dim_num] = (scen->get_num_gridpoints(dim_num)/((int) -rec->get_position(dim_num)));
+                m_dev.m_cols *= m_dev.m_grid_num[dim_num];
+            } else {
+                m_dev.m_position_idx[dim_num] = std::round(rec->get_position(dim_num)/
+                                                     scen->get_gridpoint_size(dim_num));
+            }
         }
 
 	/* create result */
         m_result = std::make_shared<result>(rec->get_name(), m_dev.m_cols,
-                                            m_dev.m_rows);
+                                            m_dev.m_rows, m_dev.m_grid_num);
 
         m_dev.m_type = rec->get_type();
         m_dev.m_timestep = scen->get_timestep_size();
@@ -193,6 +215,10 @@ public:
     bool hasto_record(unsigned int iteration) const {
         return m_dev.hasto_record(iteration);
     }
+    
+    unsigned int has2rec_r(unsigned int x, unsigned int y, unsigned int z, unsigned int t) const {
+        return m_dev.has2rec_r(x,y,z,t);
+    }
 
     bool is_complex() const {
         return m_dev.m_is_complex;
@@ -200,7 +226,7 @@ public:
 
     unsigned int get_interval() const { return m_dev.m_interval; }
 
-    unsigned int get_position() const { return m_dev.m_position_idx; }
+    unsigned int get_position() const { return m_dev.m_position_idx[0]; }
 
     unsigned int get_cols() const { return m_dev.m_cols; }
 

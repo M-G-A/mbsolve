@@ -1104,51 +1104,42 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
                             (n * OL + m, base_idx*(grid.num[1])*(grid.num[2]) - pos);
 
 #pragma omp simd
+//                            (idx >= pos) && (idx < pos + cols)
                             for (int i = OL; i < chunk + OL; i++) {
                                 int idx = base_idx + i;
-                                if ((idx >= pos) && (idx < pos + cols)) {
-                                    if (t == record::type::electric) {
-                                        for (unsigned int y=0; y<grid.num[1]; y++) {
-                                            for (unsigned int z=0; z<grid.num[2]; z++) {
-                                                m_result_scratch[off_r + grid.ind[i][y][z]] = t_e[grid.ind[i][y][z]][ridx];
-                                            }
-                                        }
-                                    } else if (t == record::type::magnetic) {
-                                        for (unsigned int y=0; y<grid.num[1]; y++) {
-                                            for (unsigned int z=0; z<grid.num[2]; z++) {
-                                                m_result_scratch[off_r + grid.ind[i][y][z]] = t_h[grid.ind[i][y][z]][ridx];
-                                            }
-                                        }
-                                    } else if (t == record::type::inversion) {
-                                        for (unsigned int y=0; y<grid.num[1]; y++) {
-                                            for (unsigned int z=0; z<grid.num[2]; z++) {
-                                                m_result_scratch[off_r + grid.ind[i][y][z]] =
-                                                    t_d[grid.ind[i][y][z]](num_lvl * (num_lvl - 1));
-                                            }
-                                        }
-                                    } else if (t == record::type::density) {
-                                        for (unsigned int y=0; y<grid.num[1]; y++) {
-                                            for (unsigned int z=0; z<grid.num[2]; z++) {
+                                for (unsigned int y=0; y<grid.num[1]; y++) {
+                                    for (unsigned int z=0; z<grid.num[2]; z++) {
+                                        unsigned int r_index = l_copy_list[k].has2rec_r(idx,y,z,n * OL + m);
+                                        if (r_index>0) {
+                                            unsigned int s_index = grid.ind[i][y][z];
+                                            
+                                            if (t == record::type::electric) {
+                                                m_result_scratch[r_index-1] = t_e[s_index][ridx];
+                                            } else if (t == record::type::magnetic) {
+                                                m_result_scratch[r_index-1] = t_h[s_index][ridx];
+                                            } else if (t == record::type::inversion) {
+                                                m_result_scratch[r_index-1] =
+                                                    t_d[s_index](num_lvl * (num_lvl - 1));
+                                            } else if (t == record::type::density) {
                                                 /* right now only populations */
                                                 real temp = 1.0/num_lvl;
                                                 for (int l = num_lvl * (num_lvl - 1);
                                                      l < num_adj; l++) {
-                                                    temp += 0.5 * t_d[grid.ind[i][y][z]](l) *
+                                                    temp += 0.5 * t_d[s_index](l) *
                                                         m_generators[l](ridx, cidx).real();
                                                 }
-                                                m_result_scratch[off_r + grid.ind[i][y][z]] = temp;
+                                                m_result_scratch[r_index-1] = temp;
+                                                /* TODO: coherences
+                                                 * remove 1/3
+                                                 * consider only two/one corresponding
+                                                 * entry */
+
+                                            } else {
+                                                /* TODO handle trouble */
+
+                                                /* TODO calculate regular populations */
                                             }
                                         }
-
-                                        /* TODO: coherences
-                                         * remove 1/3
-                                         * consider only two/one corresponding
-                                         * entry */
-
-                                    } else {
-                                        /* TODO handle trouble */
-
-                                        /* TODO calculate regular populations */
                                     }
                                 }
                             }

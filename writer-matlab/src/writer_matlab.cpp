@@ -105,7 +105,7 @@ writer_matlab::write(const std::string& file,
         }
         
         const mwSize ndim = 4;
-        const mwSize dims[4]   = {scen->get_num_gridpoints(2),scen->get_num_gridpoints(1),scen->get_num_gridpoints(0),r->get_rows()};
+        const mwSize dims[4] = {r->get_num_gridpoints(2),r->get_num_gridpoints(1),r->get_num_gridpoints(0),r->get_rows()};
         mxArray *var=mxCreateNumericArray( ndim,
                                            dims,
                                            mxDOUBLE_CLASS,

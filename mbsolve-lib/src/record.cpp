@@ -24,7 +24,7 @@
 
 namespace mbsolve {
 
-record::record(const std::string& name, real interval, real position) :
+record::record(const std::string& name, real interval, real *position) :
     m_name(name), m_interval(interval), m_position(position)
 {
     /* type of requested result? */
@@ -55,7 +55,7 @@ record::record(const std::string& name, real interval, real position) :
 }
 
 record::record(const std::string& name, type record_type, unsigned int row_idx,
-               unsigned int col_idx, real interval, real position) :
+               unsigned int col_idx, real interval, real *position) :
     m_name(name), m_type(record_type), m_row(row_idx - 1), m_col(col_idx - 1),
     m_interval(interval), m_position(position)
 {
