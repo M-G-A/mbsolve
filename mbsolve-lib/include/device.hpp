@@ -147,7 +147,7 @@ public:
     /**
      * Get device length.
      */
-    real get_length(unsigned int dim_num) const;
+    real get_length(unsigned int dim_num = 0) const;
 
     /**
      * Get the minimum relative permittivity value.

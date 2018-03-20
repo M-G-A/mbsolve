@@ -85,15 +85,15 @@ public:
 
     void set_num_timesteps(unsigned int value);
 
-    unsigned int get_num_gridpoints(unsigned int dim_num) const;
+    unsigned int get_num_gridpoints(unsigned int dim_num = 0) const;
 
-    void set_num_gridpoints(unsigned int value, unsigned int dim_num);
+    void set_num_gridpoints(unsigned int value, unsigned int dim_num = 0);
 
     real get_timestep_size() const;
 
     void set_timestep_size(real value);
 
-    real get_gridpoint_size(unsigned int dim_num) const;
+    real get_gridpoint_size(unsigned int dim_num = 0) const;
 
     void set_gridpoint_size(real value, int dim_num);
 

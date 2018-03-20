@@ -109,11 +109,11 @@ solver_openmp_2lvl_os_red::solver_openmp_2lvl_os_red
     m_h = new real*[P];
     m_mat_indices = new unsigned int*[P];
 
-    unsigned int *l_mat_indices = new unsigned int[scen->get_num_gridpoints(0)];
+    unsigned int *l_mat_indices = new unsigned int[scen->get_num_gridpoints()];
 
-    for (unsigned int i = 0; i < scen->get_num_gridpoints(0); i++) {
+    for (unsigned int i = 0; i < scen->get_num_gridpoints(); i++) {
         unsigned int mat_idx = 0;
-        real x = i * scen->get_gridpoint_size(0);
+        real x = i * scen->get_gridpoint_size();
 
         for (const auto& reg : dev->get_regions()) {
             if ((x >= reg->get_start()) && (x <= reg->get_end())) {
@@ -160,7 +160,7 @@ solver_openmp_2lvl_os_red::solver_openmp_2lvl_os_red
     for (const auto& src : scen->get_sources()) {
         sim_source s;
         s.type = src->get_type();
-        s.x_idx[0] = src->get_position(0)/scen->get_gridpoint_size(0);
+        s.x_idx[0] = src->get_position()/scen->get_gridpoint_size();
         s.data_base_idx = base_idx;
         m_sim_sources.push_back(s);
 
@@ -173,9 +173,9 @@ solver_openmp_2lvl_os_red::solver_openmp_2lvl_os_red
         base_idx += scen->get_num_timesteps();
     }
 
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
-    unsigned int chunk_base = m_scenario->get_num_gridpoints(0)/P;
-    unsigned int chunk_rem = m_scenario->get_num_gridpoints(0) % P;
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
+    unsigned int chunk_base = m_scenario->get_num_gridpoints()/P;
+    unsigned int chunk_rem = m_scenario->get_num_gridpoints() % P;
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
 
 #ifndef XEON_PHI_OFFLOAD
@@ -292,7 +292,7 @@ solver_openmp_2lvl_os_red::~solver_openmp_2lvl_os_red()
     unsigned int P = omp_get_max_threads();
     unsigned int num_sources = m_sim_sources.size();
     unsigned int num_copy = m_copy_list.size();
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
 
 #ifdef XEON_PHI_OFFLOAD
@@ -341,9 +341,9 @@ void
 solver_openmp_2lvl_os_red::run() const
 {
     unsigned int P = omp_get_max_threads();
-    unsigned int num_gridpoints = m_scenario->get_num_gridpoints(0);
-    unsigned int chunk_base = m_scenario->get_num_gridpoints(0)/P;
-    unsigned int chunk_rem = m_scenario->get_num_gridpoints(0) % P;
+    unsigned int num_gridpoints = m_scenario->get_num_gridpoints();
+    unsigned int chunk_base = m_scenario->get_num_gridpoints()/P;
+    unsigned int chunk_rem = m_scenario->get_num_gridpoints() % P;
     unsigned int num_timesteps = m_scenario->get_num_timesteps();
     unsigned int num_sources = m_sim_sources.size();
     unsigned int num_copy = m_copy_list.size();

@@ -44,7 +44,7 @@ init_sim_constants(std::shared_ptr<const device> dev,
 
         /* factor for magnetic field update */
         sc.M_CH = scen->get_timestep_size()/
-            (MU0 * mat->get_rel_permeability() * scen->get_gridpoint_size(0));
+            (MU0 * mat->get_rel_permeability() * scen->get_gridpoint_size());
 
         /* convert loss term to conductivity */
         sc.sigma = sqrt(EPS0 * mat->get_rel_permittivity()/
@@ -86,7 +86,7 @@ init_sim_constants(std::shared_ptr<const device> dev,
         }
 
         /* simulation settings */
-        sc.d_x_inv = 1.0/scen->get_gridpoint_size(0);
+        sc.d_x_inv = 1.0/scen->get_gridpoint_size();
         sc.d_t = scen->get_timestep_size();
 
         sim_constants.push_back(sc);
@@ -101,7 +101,7 @@ void init_fdtd_simulation(std::shared_ptr<const device> dev,
                           std::shared_ptr<scenario> scen,
                           real courant)
 {
-    if (scen->get_num_gridpoints(0) > 0) {
+    if (scen->get_num_gridpoints() > 0) {
         /* speed of light (use smallest value of relative permittivities) */
         real velocity = 1.0/sqrt(MU0 * EPS0 * dev->get_minimum_permittivity());
 

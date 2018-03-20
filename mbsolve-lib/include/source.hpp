@@ -90,7 +90,7 @@ public:
         return 0.0;
     }
 
-    real get_position(unsigned int dim_num) const {
+    real get_position(unsigned int dim_num = 0) const {
         return m_position[dim_num];
     }
 
@@ -272,7 +272,9 @@ public:
             * std::exp(- i*m_k*(pow(y,2) + pow(z,2))/(2*m_R))
             * std::exp(- i * m_k * m_z)
             * std::exp(i * ((real)(m_n+m_m+1)) * m_zeta)
-            * std::exp(i* m_k * 299792458.0 * t);
+            * 1.0/std::cosh(2e14 * t - m_phase)
+            *  sin(2 * M_PI * m_freq * t);
+//        std::exp(i* m_k * 299792458.0 * t);
 //        std::cout << ret << "; ";
         return (m_pol[dim_num]*ret).real();
     }
