@@ -120,6 +120,64 @@ relax_sop_song3(const Eigen::Matrix<mbsolve::complex, 3, 3>& arg)
     return ret;
 }
 
+/* slavcheva relaxation superoperator - setup 1*/
+Eigen::Matrix<mbsolve::complex, 3, 3>
+relax_slavcheva(const Eigen::Matrix<mbsolve::complex, 3, 3>& arg)
+{
+    Eigen::Matrix<mbsolve::complex, 3, 3> ret =
+    Eigen::Matrix<mbsolve::complex, 3, 3>::Zero();
+    
+    mbsolve::real d7_eq = -1.0;
+    mbsolve::real d8_eq = 0.0;
+    mbsolve::real T_1 = 1e-10;
+    
+    ret(0, 0) = 1.0/3 * (1/T_1 * (arg(2, 2) + arg(1, 1) - 2.0 * arg(0, 0)
+                                  - d7_eq - d8_eq));
+    ret(1, 1) = 1.0/3 * (1/T_1 * (arg(2, 2) + arg(1, 1) - 2.0 * arg(0, 0)
+                                  - d7_eq - d8_eq))
+    - 1/T_1 * (arg(1, 1) - arg(0, 0) - d7_eq);
+    ret(2, 2) = 1.0/3 * (1/T_1 * (arg(2, 2) + arg(1, 1) - 2.0 * arg(0, 0)
+                                  - d7_eq - d8_eq))
+    - 1/T_1 * (arg(2, 2) - arg(0, 0) - d8_eq);
+    ret(1, 0) = -1/T_1 * arg(1, 0);
+    ret(0, 1) = -1/T_1 * arg(0, 1);
+    ret(2, 0) = -1/T_1 * arg(2, 0);
+    ret(0, 2) = -1/T_1 * arg(0, 2);
+    ret(2, 1) = -1/T_1 * arg(2, 1);
+    ret(1, 2) = -1/T_1 * arg(1, 2);
+    
+    return ret;
+}
+
+/* slavcheva relaxation superoperator - setup 2*/
+Eigen::Matrix<mbsolve::complex, 3, 3>
+relax_slavcheva_2(const Eigen::Matrix<mbsolve::complex, 3, 3>& arg)
+{
+    Eigen::Matrix<mbsolve::complex, 3, 3> ret =
+    Eigen::Matrix<mbsolve::complex, 3, 3>::Zero();
+    
+    mbsolve::real d7_eq = -1.0;
+    mbsolve::real d8_eq = -1/(std::sqrt(3));
+    mbsolve::real T_1 = 1e-10;
+    
+    ret(0, 0) = 1.0/3 * (1/T_1 * (arg(2, 2) + arg(1, 1) - 2.0 * arg(0, 0)
+                                  - d7_eq - d8_eq));
+    ret(1, 1) = 1.0/3 * (1/T_1 * (arg(2, 2) + arg(1, 1) - 2.0 * arg(0, 0)
+                                  - d7_eq - d8_eq))
+    - 1/T_1 * (arg(1, 1) - arg(0, 0) - d7_eq);
+    ret(2, 2) = 1.0/3 * (1/T_1 * (arg(2, 2) + arg(1, 1) - 2.0 * arg(0, 0)
+                                  - d7_eq - d8_eq))
+    - 1/T_1 * (arg(2, 2) - arg(0, 0) - d8_eq);
+    ret(1, 0) = -1/T_1 * arg(1, 0);
+    ret(0, 1) = -1/T_1 * arg(0, 1);
+    ret(2, 0) = -1/T_1 * arg(2, 0);
+    ret(0, 2) = -1/T_1 * arg(0, 2);
+    ret(2, 1) = -1/T_1 * arg(2, 1);
+    ret(1, 2) = -1/T_1 * arg(1, 2);
+    
+    return ret;
+}
+
 /* ziolkowski1995 relaxation superoperator */
 Eigen::Matrix<mbsolve::complex, 2, 2>
 relax_sop_ziolk2(const Eigen::Matrix<mbsolve::complex, 2, 2>& arg)
@@ -177,6 +235,80 @@ relax_sop_tzenov2018_gain(const Eigen::Matrix<mbsolve::complex, 2, 2>& arg)
     return ret;
 }
 
+Eigen::Matrix<mbsolve::complex, 3, 3>
+relax_sop_tzenov2016(const Eigen::Matrix<mbsolve::complex, 3, 3>& arg)
+{
+    Eigen::Matrix<mbsolve::complex, 3, 3> ret =
+    Eigen::Matrix<mbsolve::complex, 3, 3>::Zero();
+    
+    /* scattering rates */
+    mbsolve::real tau_12_inv = 0.0451e12;
+    mbsolve::real tau_13_inv = 0.0016e12;
+    mbsolve::real tau_42_inv = 0.0018e12;
+    mbsolve::real tau_43_inv = 0.0013e12;
+    
+    mbsolve::real tau_21_inv = 0.0894e12;
+    mbsolve::real tau_23_inv = 0.1252e12;
+    mbsolve::real tau_24_inv = 0.0464e12;
+    
+    mbsolve::real tau_31_inv = 0.0425e12;
+    mbsolve::real tau_32_inv = 0.0794e12;
+    mbsolve::real tau_34_inv = 0.6196e12;
+    
+    /* lifetimes (inverse) */
+    mbsolve::real tau_1_inv = tau_12_inv + tau_13_inv
+    + tau_42_inv + tau_43_inv;
+    mbsolve::real tau_2_inv = tau_21_inv + tau_23_inv + tau_24_inv;
+    mbsolve::real tau_3_inv = tau_31_inv + tau_32_inv + tau_34_inv;
+    
+    /* main diagonal/scattering */
+    ret(0, 0) = - tau_1_inv * arg(0, 0)
+    + (tau_21_inv + tau_24_inv) * arg(1, 1)
+    + (tau_31_inv + tau_34_inv) * arg(2, 2);
+    
+    ret(1, 1) = - tau_2_inv * arg(1, 1)
+    + (tau_12_inv + tau_42_inv) * arg(0, 0)
+    + tau_32_inv * arg(2, 2);
+    
+    ret(2, 2) = - tau_3_inv * arg(2, 2)
+    + (tau_13_inv + tau_43_inv) * arg(0, 0)
+    + tau_23_inv * arg(1, 1);
+    
+    /* check trace */
+    mbsolve::real trace = (ret(0, 0) + ret(1, 1) + ret(2, 2)).real();
+    if (trace > 1e-15) {
+        std::cout << "d0: " << ret(0, 0).real() << " d1: " << ret(1, 1).real()
+        << " d2: " << ret(2, 2).real() << std::endl;
+        std::cout << "Warning: trace exceeds 1e-15: " << trace << std::endl;
+    }
+    
+    /* pure dephasing times */
+    mbsolve::real tau_12_pure = 0.6e-12;
+    mbsolve::real tau_13_pure = 1e-12;
+    mbsolve::real tau_23_pure = 1e-12;
+    
+    /* dephasing rates */
+    mbsolve::real tau_12_deph_inv = 0.5 * (tau_1_inv + tau_2_inv) +
+    1.0/tau_12_pure;
+    mbsolve::real tau_23_deph_inv = 0.5 * (tau_2_inv + tau_3_inv) +
+    1.0/tau_23_pure;
+    mbsolve::real tau_13_deph_inv = 0.5 * (tau_1_inv + tau_3_inv) +
+    1.0/tau_13_pure;
+    
+    /* offdiagonal/dephasing */
+    ret(0, 1) = - tau_12_deph_inv * arg(0, 1);
+    ret(1, 0) = - tau_12_deph_inv * arg(1, 0);
+    
+    ret(1, 2) = - tau_23_deph_inv * arg(1, 2);
+    ret(2, 1) = - tau_23_deph_inv * arg(2, 1);
+    
+    ret(2, 0) = - tau_13_deph_inv * arg(2, 0);
+    ret(0, 2) = - tau_13_deph_inv * arg(0, 2);
+    
+    return ret;
+}
+
+
 int main(int argc, char **argv)
 {
     dim=1;
@@ -195,17 +327,18 @@ int main(int argc, char **argv)
         std::shared_ptr<mbsolve::scenario> scen;
         
         double dt=25e-15;
-        double position[3]={-2,50e-6,-1};
+        double position[3]={-5,-2,-1};
         
         /* source */
-        double pol[3]={0.0,1,0.0};
-        double source_pos[3]={0.0,0.5,0.0};
-        double sigma=0.1;
-        double A = 1;//use 5e-6 for gaussian-beam;
+        double pol[3]={0.0,1.0,0.0};
+        double source_pos[3]={0.0,0.5,0.0}; //percentage
+        double sigma=0.22;
+        double A = 3e-5;//use 1e-5 for gaussian-beam;
         double f = 1;
-        int s = 1; //0=line,1=gaussian,2=gaussian-beam - source
-        int n = 2; //gaussian-beam mode
+        int s = 2; //0=line,1=gaussian,2=gaussian-beam - source
+        int n = 0; //gaussian-beam mode
         int m = 0; //gaussian-beam mode
+        double width = 50e-6;
         
 
         if (device_file == "song2005") {
@@ -245,7 +378,7 @@ int main(int argc, char **argv)
             auto mat_ar = std::make_shared<mbsolve::material>("AR_Song", qm);
             mbsolve::material::add_to_library(mat_ar);
 
-            dev = std::make_shared<mbsolve::device>("Song");
+            dev = std::make_shared<mbsolve::device>("Song",width);
             dev->add_region(std::make_shared<mbsolve::region>
                             ("Active region", mat_ar, 0, 150e-6));
 
@@ -337,7 +470,7 @@ int main(int argc, char **argv)
             mbsolve::material::add_to_library(mat_ar);
 
             /* set up device */
-            dev = std::make_shared<mbsolve::device>("Ziolkowski");
+            dev = std::make_shared<mbsolve::device>("Ziolkowski",width);
             dev->add_region(std::make_shared<mbsolve::region>
                             ("Vacuum left", mat_vac, 0, 7.5e-6));
             dev->add_region(std::make_shared<mbsolve::region>
@@ -403,7 +536,7 @@ int main(int argc, char **argv)
                 }
                 /* dipole moment operator */
                 u_gain[dim-1] << 0, 1.0, 1.0, 0;
-                u_gain[dim-1] = u_gain[dim-1] * mbsolve::E0 * 2e-9;
+                u_gain[dim-1] = u_gain[dim-1] * mbsolve::E0 * 2e-9*1e-2;
                 u_abs[dim-1] << 0, 1.0, 1.0, 0;
                 u_abs[dim-1] = u_abs[dim-1] * mbsolve::E0 * 6e-9;
 
@@ -433,7 +566,7 @@ int main(int argc, char **argv)
             mbsolve::material::add_to_library(mat_gain);
 
             /* set up device */
-            dev = std::make_shared<mbsolve::device>("tzenov-cpml");
+            dev = std::make_shared<mbsolve::device>("tzenov-cpml",width);
             dev->add_region(std::make_shared<mbsolve::region>
                             ("Gain R", mat_gain, 0, 0.5e-3));
             dev->add_region(std::make_shared<mbsolve::region>
@@ -455,7 +588,310 @@ int main(int argc, char **argv)
 
             scen->add_record(std::make_shared<mbsolve::record>
                              ("inv12", dt, position));
-        } else if (device_file == "abundis2018-cpml") {
+        } else if (device_file == "abundis2018") {
+            std::shared_ptr<mbsolve::qm_description> qm;
+            
+            if ((solver_method == "openmp-3lvl-os-red") ||
+                (solver_method == "openmp-3lvl-rk")) {
+                /* Tzenov 2016 frequency comb setup in 3-lvl desc */
+                Eigen::Matrix<mbsolve::complex, 3, 3> H, *u, d_init;
+                
+                u = new Eigen::Matrix<mbsolve::complex, 3, 3> [dim];
+                
+                H << -0.43/2, -1.3447, 0,
+                -1.3447, 0.43/2, 0,
+                0, 0, 0.43/2 - 15.82;
+                H = H * mbsolve::E0 * 1e-3;
+                u[0] << 0, 0, 0,
+                0, 0, 1.0,
+                0, 1.0, 0;
+                u[0] = u[0] * mbsolve::E0 * 4e-9 * (-1);
+                d_init << 1, 0, 0,
+                0, 0, 0,
+                0, 0, 0;
+                
+                qm = std::make_shared<mbsolve::qm_desc_3lvl>
+                (dim,5.6e21, H, u, &relax_sop_tzenov2016, d_init);
+            } else {
+            }
+            
+            auto mat_ar = std::make_shared<mbsolve::material>
+            ("AR_Tzenov", qm, 12.96, 0.9, 1100);
+            mbsolve::material::add_to_library(mat_ar);
+            
+            /* set up device */
+            dev = std::make_shared<mbsolve::device>("tzenov-optexp",width);
+            dev->add_region(std::make_shared<mbsolve::region>
+                            ("Active region", mat_ar, 0, 5e-3));
+            
+            /* default settings */
+            if (num_gridpoints[0] == 0) {
+                num_gridpoints[0] = 8192;
+            }
+            if (sim_endtime < 1e-21) {
+                sim_endtime = 10e-9;
+            }
+            
+            /* Tzenov basic scenario */
+            scen = std::make_shared<mbsolve::scenario>
+            (dim,"basic", num_gridpoints, sim_endtime);
+            
+            auto gauss_pulse_left = std::make_shared<mbsolve::gauss_pulse>
+            ("gauss", source_pos, mbsolve::source::hard_source,pol, 82.28,
+             2 * M_PI * 3.5e12, 2e-12, 3e-13, 0);
+            scen->add_source(gauss_pulse_left);
+            
+            scen->add_record(std::make_shared<mbsolve::record>
+                             ("d11", mbsolve::record::type::density, 1, 1,
+                              dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>
+                             ("d22", mbsolve::record::type::density, 2, 2,
+                              dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>
+                             ("d33", mbsolve::record::type::density, 3, 3,
+                              dt, position));
+        } else if (device_file == "slavcheva2002") {
+            if ((dim==2) && (solver_method == "openmp-3lvl-os-red")) {
+                pol[0]=0;
+                pol[1]=1;
+                pol[2]=0;
+                Eigen::Matrix<mbsolve::complex, 3, 3> H, *u, d_init, G;
+                double freq = 2*1e14;
+                double w_0 = 2 * M_PI * freq;
+                H << 0, 0, 0,
+                0, w_0, 0,
+                0, 0, w_0;
+                H = H * mbsolve::HBAR;
+                
+                // mbsolve::real g = 1.0;
+                mbsolve::real ang = 1e-10;
+                
+                u = new Eigen::Matrix<mbsolve::complex, 3, 3> [dim];
+                u[1] <<0, ang, 0,
+                ang, 0, 0,
+                0, 0, 0;
+                u[1] = u[1] * 1e-19;//mbsolve::E0;
+                u[0] <<0, 0, ang,
+                0, 0, 0,
+                ang, 0, 0;
+                u[0] = u[0] * 1e-19;//mbsolve::E0;
+                
+                d_init << 1, 0, 0,
+                0, 0, 0,
+                0, 0, 0;
+                G << 0, 0, 0,
+                0, 0, 0,
+                0, 0, 0;
+                
+                auto qm = std::make_shared<mbsolve::qm_desc_3lvl>
+                    (dim, 1e24, H, u, &relax_slavcheva, d_init);
+                
+                auto mat_air = std::make_shared<mbsolve::material>("air");
+                mbsolve::material::add_to_library(mat_air);
+                auto mat_ar = std::make_shared<mbsolve::material>("active region", qm);
+                mbsolve::material::add_to_library(mat_ar);
+                
+                dev = std::make_shared<mbsolve::device>("slavcheva",width);
+                dev->add_region(std::make_shared<mbsolve::region>
+                                ("Air_1", mat_air, 0, 7.5e-6));
+                dev->add_region(std::make_shared<mbsolve::region>
+                                ("Active region", mat_ar, 7.5e-6, 142.5e-6));
+                dev->add_region(std::make_shared<mbsolve::region>
+                                ("Air 2", mat_air, 142.5e-6, 150e-6));
+                
+                /* default settings */
+                if (num_gridpoints[0] == 1) {
+                    num_gridpoints[0] = 5000;
+                }
+                if (num_gridpoints[1] == 1) {
+                    num_gridpoints[0] = 100;
+                }
+                
+                if (sim_endtime < 1e-21) {
+                    sim_endtime = 500e-15;
+                }
+                
+                scen = std::make_shared<mbsolve::scenario>
+                (dim,"basic", num_gridpoints, sim_endtime);
+                
+//                auto sech = std::make_shared<mbsolve::sech_pulse>
+//                ("sech", source_pos, mbsolve::source::hard_source,pol, 4.2186e9, freq , 5e-14, 2e14, 0);
+//                scen->add_source(sech);
+                auto source = std::make_shared<mbsolve::sech_pulse>
+                ("sech", source_pos, mbsolve::source::hard_source, pol, 4.2186e9, 2e14,
+                 10, 2e14);
+                scen->add_source(source);
+                
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("S1", mbsolve::record::type::adjoint, 1, 0,
+                                  dt, position));
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("S4", mbsolve::record::type::adjoint, 4, 0,
+                                  dt, position));
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("S7", mbsolve::record::type::adjoint, 7, 0,
+                                  dt, position));
+            } else {
+                throw std::invalid_argument("Couldn't simulate! Slavcheva2002 is only defined in 2D for the 3lvl-os-red method");
+            }
+        
+        } else if (device_file == "slavcheva2002_2") {
+            if ((dim==2) && (solver_method == "openmp-3lvl-os-red")) {
+                pol[0]=1;
+                pol[1]=1;
+                pol[2]=0;
+                Eigen::Matrix<mbsolve::complex, 3, 3> H, *u, d_init, G;
+                double freq = 2*1e14;
+                double w_0 = 2 * M_PI * freq;
+                H << 0, 0, 0,
+                0, w_0, 0,
+                0, 0, w_0;
+                H = H * mbsolve::HBAR;
+                
+                // mbsolve::real g = 1.0;
+                mbsolve::real ang = 1e-10;
+                
+                u = new Eigen::Matrix<mbsolve::complex, 3, 3> [dim];
+                u[1] <<0, ang, 0,
+                ang, 0, 0,
+                0, 0, 0;
+                u[1] = u[1] * 1e-19;//mbsolve::E0;
+                u[0] <<0, 0, ang,
+                0, 0, 0,
+                ang, 0, 0;
+                u[0] = u[0] * 1e-19;//mbsolve::E0;
+                
+                d_init << 1, 0, 0,
+                0, 0, 0,
+                0, 0, 0;
+                G << 0, 0, 0,
+                0, 0, 0,
+                0, 0, 0;
+                
+                auto qm = std::make_shared<mbsolve::qm_desc_3lvl>
+                    (dim, 1e24, H, u, &relax_slavcheva_2, d_init);
+                
+                auto mat_air = std::make_shared<mbsolve::material>("air");
+                mbsolve::material::add_to_library(mat_air);
+                auto mat_ar = std::make_shared<mbsolve::material>("active region", qm);
+                mbsolve::material::add_to_library(mat_ar);
+                
+                dev = std::make_shared<mbsolve::device>("slavcheva",9.9185e-6);
+                dev->add_region(std::make_shared<mbsolve::region>
+                                ("Air_1", mat_air, 0, 1e-6));
+                dev->add_region(std::make_shared<mbsolve::region>
+                                ("Active region", mat_ar, 1e-6, 44e-6));
+                dev->add_region(std::make_shared<mbsolve::region>
+                                ("Air 2", mat_air, 44e-6, 45e-6));
+                
+                /* default settings */
+                if (num_gridpoints[0] == 1) {
+                    num_gridpoints[0] = 50000;
+                }
+                if (num_gridpoints[1] == 1) {
+                    num_gridpoints[0] = 100;
+                }
+                
+                if (sim_endtime < 1e-21) {
+                    sim_endtime = 500e-15;
+                }
+                
+                scen = std::make_shared<mbsolve::scenario>
+                (dim,"basic", num_gridpoints, sim_endtime);
+                
+//                auto sech = std::make_shared<mbsolve::sech_pulse>
+//                ("sech", source_pos, mbsolve::source::hard_source,pol, 4.2186e9, freq , 5e-14, 2e14, 0);
+//                scen->add_source(sech);
+                auto source = std::make_shared<mbsolve::sech_pulse2>
+                ("sech", source_pos, mbsolve::source::hard_source, pol, 1.123e7, 2e14,
+                 10, 2e14);
+                scen->add_source(source);
+                
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("S1", mbsolve::record::type::adjoint, 1, 0,
+                                  dt, position));
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("S3", mbsolve::record::type::adjoint, 2, 0,
+                                  dt, position));
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("S4", mbsolve::record::type::adjoint, 4, 0,
+                                  dt, position));
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("S6", mbsolve::record::type::adjoint, 5, 0,
+                                  dt, position));
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("d11", mbsolve::record::type::density, 1, 1,
+                                  dt, position));
+                scen->add_record(std::make_shared<mbsolve::record>
+                                 ("d22", mbsolve::record::type::density, 2, 2,
+                                  dt, position));
+            } else {
+                throw std::invalid_argument("Couldn't simulate! Slavcheva2002_2 is only defined in 2D for the 3lvl-os-red method");
+            }
+            
+        } else if (device_file == "test") {
+            Eigen::Matrix<mbsolve::complex, 2, 2> H, *u, d_init;
+
+            H <<-0.5, 0,
+            0, 0.5;
+            H = H * mbsolve::HBAR * 2 * M_PI * 2e14;
+
+            u = new Eigen::Matrix<mbsolve::complex, 2, 2> [dim];
+            for (unsigned int dim_num=0; dim_num<dim-1; dim_num++) {
+                u[dim_num]=Eigen::Matrix<mbsolve::complex, 2, 2>::Zero();
+            }
+            //                u[dim-2] <<0, 1.0,
+            //                1.0, 0;
+            //                u[dim-2] = u[dim-2] * mbsolve::E0 * 6.24e-11 * (-1.0);
+            u[dim-1] <<0, 1.0,
+            1.0, 0;
+            u[dim-1] = u[dim-1] * mbsolve::E0 * 6.24e-11 * (-1.0);
+
+            d_init << 1, 0,
+            0, 0;
+            std::shared_ptr<mbsolve::qm_description> qm;
+            qm = std::make_shared<mbsolve::qm_desc_clvl<2> >
+                            (dim, 1e24, H, u, &relax_sop_ziolk2, d_init);
+            auto mat_vac = std::make_shared<mbsolve::material>("Vacuum");
+            auto mat_er = std::make_shared<mbsolve::material>("er",qm,1.2);
+            mbsolve::material::add_to_library(mat_vac);
+            mbsolve::material::add_to_library(mat_er);
+            /* set up device */
+            dev = std::make_shared<mbsolve::device>("test",width);
+            double xx = 0.0;
+            double dx = 2*7.5e-6;
+            for (unsigned int i = 0; i<10; i++) {
+                dev->add_region(std::make_shared<mbsolve::region>
+                                ("Vacuum", mat_vac, xx, xx+dx));
+                dev->add_region(std::make_shared<mbsolve::region>
+                                ("e_r", mat_er, xx+dx, xx+2*dx));
+                xx+=2*dx;
+            }
+
+            scen = std::make_shared<mbsolve::scenario>
+            (dim, "Basic", num_gridpoints, sim_endtime);
+            
+            if (s == 0) {
+                auto source = std::make_shared<mbsolve::sech_pulse>
+                //("sech", 0.0, mbsolve::source::hard_source, 4.2186e9/2, 2e14,
+                ("sech", source_pos, mbsolve::source::hard_source, pol, A*4.2186e9, f*2e14,
+                 10, 2e14);
+                scen->add_source(source);
+            } else if (s == 1) {
+                auto source = std::make_shared<mbsolve::gauss>
+                ("gauss", source_pos, mbsolve::source::hard_source, pol, A*4.2186e9, f*2e14,
+                 10, sigma, 2e14);
+                scen->add_source(source);
+            }else{
+                auto source = std::make_shared<mbsolve::gauss_beam>
+                ("gauss_beam", source_pos, mbsolve::source::hard_source, pol, A*4.2186e9, f*2e14,
+                 10, sigma, n, m);
+                scen->add_source(source);
+            }
+            scen->add_record(std::make_shared<mbsolve::record>
+                                            ("inv12", dt, position));
+
+
         } else {
             throw std::invalid_argument("Specified device not found!");
         }
@@ -467,14 +903,14 @@ int main(int argc, char **argv)
             scen->add_record(std::make_shared<mbsolve::record>("h_y",
                     mbsolve::record::type::magnetic,1,0, dt, position));
         }else if(dim==2) {
-//            scen->add_record(std::make_shared<mbsolve::record>("e_y",
-//                    mbsolve::record::type::electric,1,0, dt, position));
+            scen->add_record(std::make_shared<mbsolve::record>("e_x",
+                    mbsolve::record::type::electric,1,0, dt, position));
             scen->add_record(std::make_shared<mbsolve::record>("e_z",
                     mbsolve::record::type::electric,2,0, dt, position));
-            scen->add_record(std::make_shared<mbsolve::record>("h_x",
-                    mbsolve::record::type::magnetic,1,0, dt, position));
             scen->add_record(std::make_shared<mbsolve::record>("h_y",
-                    mbsolve::record::type::magnetic,2,0, dt, position));
+                    mbsolve::record::type::magnetic,1,0, dt, position));
+//            scen->add_record(std::make_shared<mbsolve::record>("h_y",
+//                    mbsolve::record::type::magnetic,2,0, dt, position));
         }else{
             scen->add_record(std::make_shared<mbsolve::record>("e_x",
                     mbsolve::record::type::electric,1,0, dt, position));

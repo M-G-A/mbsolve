@@ -149,8 +149,40 @@ public:
         real ret = 0.0;
         ret = 1/std::cosh(m_beta * t - m_phase) *
             sin(2 * M_PI * m_freq * t - m_phase_sin);
-        if ((pow(y-m_position[1],2)<0.01) && (pow(z-m_position[2],2)<0.01)) {
-            
+//        if ((pow(y-m_position[1],2)<0.01) && (pow(z-m_position[2],2)<0.01)) {
+//        }
+        return ret*m_pol[dim_num];
+    }
+
+};
+    
+class sech_pulse2 : public source
+{
+private:
+
+    real m_beta;
+    real m_phase_sin;
+
+public:
+    sech_pulse2(const std::string& name, real *position, type source_type,
+               real *pol,
+               real ampl, real freq,
+               real phase,
+               real beta, real phase_sin = 0.0) :
+        source(name, position, source_type, pol, ampl, freq, phase), m_beta(beta),
+        m_phase_sin(phase_sin)
+    {
+    }
+
+    real calc_value(real t, unsigned int dim_num, real y, real z) const
+    {
+        real ret = 0.0;
+        ret = 1/std::cosh(m_beta * t - m_phase) *
+            sin(2 * M_PI * m_freq * t - m_phase_sin);
+        if (dim_num==0) {
+            ret *= -1/(2*m_freq*EPS0*9.9185e-6) * std::sin(M_PI*y);
+        } else if (dim_num==1) {
+            ret *= 375652 * std::cos(M_PI*y);
         }
         return ret*m_pol[dim_num];
     }
@@ -274,12 +306,38 @@ public:
             * std::exp(i * ((real)(m_n+m_m+1)) * m_zeta)
             * 1.0/std::cosh(2e14 * t - m_phase)
             *  sin(2 * M_PI * m_freq * t);
-//        std::exp(i* m_k * 299792458.0 * t);
+//        std::exp(i* m_k * mbsolve::C * t);
 //        std::cout << ret << "; ";
         return (m_pol[dim_num]*ret).real();
     }
 
 };
+
+class gauss_pulse : public source
+{
+private:
+    real m_sigma;
+    real m_phase_sin;
+
+public:
+    gauss_pulse(const std::string& name, real *position,
+                type source_type, real *pol,
+                real ampl, real freq,
+                real phase,
+                real sigma, real phase_sin = 0.0) :
+        source(name, position, source_type, pol, ampl, freq, phase), m_sigma(sigma),
+        m_phase_sin(phase_sin)
+    {
+    }
+
+    real calc_value(real t, unsigned int dim_num, real y_p, real z_p) const
+    {
+        return  m_pol[dim_num]*exp(-0.5 * pow(((t - m_phase) /  m_sigma), 2)) *
+            sin(2 * M_PI * m_freq * t + m_phase_sin);
+    }
+
+};
+    
 
 
 /* TODO: custom functor source / callback function? */

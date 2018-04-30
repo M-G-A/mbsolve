@@ -35,7 +35,7 @@ namespace mbsolve {
 class record
 {
 public:
-    enum type { electric, magnetic, density, inversion };
+    enum type { electric, magnetic, density, inversion, adjoint };
 
 private:
     std::string m_name;

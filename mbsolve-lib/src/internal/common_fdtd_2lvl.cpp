@@ -106,7 +106,7 @@ void init_fdtd_simulation(std::shared_ptr<const device> dev,
         real velocity = 1.0/sqrt(MU0 * EPS0 * dev->get_minimum_permittivity());
 
         real d_x=0.0;
-        real d_x_sum = 0.0; //ToDo: bad implementation of finding min
+        real d_x_sum = 0.0;
         for (unsigned int dim_num=0; dim_num<scen->m_dim; dim_num++) {
             /* get number of grid points */
             unsigned int n_x = scen->get_num_gridpoints(dim_num);
@@ -118,7 +118,7 @@ void init_fdtd_simulation(std::shared_ptr<const device> dev,
                 d_x_sum = velocity/d_x;
             }
         }
-        /* time step size - ToDo: smaler d_t for higher dim */
+        /* time step size */
         real d_t = courant / d_x_sum;
 
         /* number of time steps */

@@ -41,6 +41,9 @@ record::record(const std::string& name, real interval, real *position) :
     case 'i':
         m_type = type::inversion;
         break;
+    case 'S':
+        m_type = type::adjoint;
+        break;
     default:
         throw std::invalid_argument("Unknown record type");
         break;
