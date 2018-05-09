@@ -683,12 +683,12 @@ update_fdtd(unsigned int size, unsigned int border,
                             * l_sim_consts[mat_idx].d_r_inv[1]);    //dyHx */
                         if ((y!=grid.num[1]-1) && (y!=0)) {
                             t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE
-                                * (-j[1] - t_p[grid.ind[i][y][z]][0]
+                                * (-j[1] - (t_p[grid.ind[i][y][z]][0]+t_p[grid.ind[i][y+1][z]][0])/2
                                 - (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
                                 * l_sim_consts[mat_idx].d_r_inv[1]);    //Ex=-dzHy
                         }
                         t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE
-                            * (-j[1] - t_p[grid.ind[i][y][z]][1]
+                            * (-j[1] - (t_p[grid.ind[i][y][z]][1]+t_p[grid.ind[i+1][y][z]][1])/2
                             + (t_h[grid.ind[i+1][y][z]][0] - t_h[grid.ind[i][y][z]][0])
                             * l_sim_consts[mat_idx].d_r_inv[0]);    //Ez=dxHy
                         break;
@@ -919,10 +919,10 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
          sim_constants_clvl_os<num_lvl,dim> *l_sim_consts, sim_grid grid)
 {
     //#pragma omp simd aligned(t_d, t_e, t_mat_indices : ALIGN)
-    for (int i = border; i < size - border - 1; i++) {
+    for (int i = border+1; i < size - border - 1; i++) {
         int mat_idx = t_mat_indices[i];
 
-        unsigned int y = 0;
+        unsigned int y = 1;
         do {
             unsigned int z = 0;
             do {
@@ -938,8 +938,12 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
                     /* time-dependent full step */
                     if (l_sim_consts[mat_idx].has_dipole) {
                         /* determine time-dependent propagator */
+                        Eigen::Matrix<real, dim, 1> t_e_middle;
+                        t_e_middle[0] = (t_e[grid.ind[i][y][z]][0]+t_e[grid.ind[i][y-1][z]][0])/2;
+                        t_e_middle[1] = (t_e[grid.ind[i][y][z]][1]+t_e[grid.ind[i-1][y][z]][1])/2;
+
                         Eigen::Matrix<real, num_adj, num_adj> A_I =
-                            mat_exp<num_lvl, num_adj, dim>(l_sim_consts[mat_idx], t_e[grid.ind[i][y][z]]);
+                            mat_exp<num_lvl, num_adj, dim>(l_sim_consts[mat_idx], t_e_middle);
                         d2 = A_I * d1;
                     } else {
                         d2 = d1;
