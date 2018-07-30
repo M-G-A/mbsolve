@@ -19,7 +19,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#define ABSORBING_BOUNDARY 1
+#define ABSORBING_BOUNDARY 0
+#define CURRENT_MODEL 1
 
 #ifndef MBSOLVE_SOLVER_OPENMP_3LVL_OS_RED_H
 #define MBSOLVE_SOLVER_OPENMP_3LVL_OS_RED_H
@@ -30,11 +31,9 @@
 #include <internal/common_fdtd_2lvl.hpp>
 #include <internal/copy_list_entry.hpp>
 
-//#define dim 1
-
 namespace mbsolve {
 
-/* struct gehört nicht hierher -> mbsolve-lib? */
+/* struct def shouldn't be here -> mbsolve-lib/types? */
 struct sim_grid{
     unsigned int ***ind;
     unsigned int *num;
@@ -147,6 +146,10 @@ private:
     real *m_e_0;
     real *m_e_L;
     real m_s[6];
+#endif
+    
+#if CURRENT_MODEL!=0
+    real **m_w;
 #endif
 
     sim_grid grid;

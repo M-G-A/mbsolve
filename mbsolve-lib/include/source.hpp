@@ -182,7 +182,7 @@ public:
         if (dim_num==0) {
             ret *= -1/(2*m_freq*EPS0*9.9185e-6) * std::sin(M_PI*y);
         } else if (dim_num==1) {
-            ret *= 375652 * std::cos(M_PI*y);
+            ret *= 375.652 * std::cos(M_PI*y);
         }
         return ret*m_pol[dim_num];
     }
@@ -332,7 +332,7 @@ public:
 
     real calc_value(real t, unsigned int dim_num, real y_p, real z_p) const
     {
-        return  m_pol[dim_num]*exp(-0.5 * pow(((t - m_phase) /  m_sigma), 2)) *
+        return m_pol[dim_num]*exp( pow(((t - m_phase) /  m_sigma), 2)) *
             sin(2 * M_PI * m_freq * t + m_phase_sin);
     }
 

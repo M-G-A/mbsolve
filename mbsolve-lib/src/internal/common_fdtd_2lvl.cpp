@@ -114,12 +114,21 @@ void init_fdtd_simulation(std::shared_ptr<const device> dev,
             /* grid point size */
             if (n_x!=1){
                 d_x = dev->get_length(dim_num)/(n_x - 1);
+                
                 scen->set_gridpoint_size(d_x, dim_num);
-                d_x_sum = velocity/d_x;
+#if COURANT_2Norm == 0
+                d_x_sum += 1/d_x;
+#else
+                d_x_sum += 1/std::pow(d_x, 2);
+#endif
             }
         }
         /* time step size */
-        real d_t = courant / d_x_sum;
+#if COURANT_2Norm == 0
+        real d_t = courant / (velocity*d_x_sum);
+#else
+        real d_t = courant / (velocity*std::sqrt(d_x_sum));
+#endif
 
         /* number of time steps */
         unsigned int n_t = ceil(scen->get_endtime()/d_t) + 1;
