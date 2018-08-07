@@ -1066,9 +1066,7 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
                         }else{
                             t_e_middle[0] = t_e[grid.ind[i][y][z]][0];
                         }
-#if CURRENT_MODEL!=0
-//                        t_e_middle*=t_w[grid.ind[i][y][z]];
-#endif
+
                         Eigen::Matrix<real, num_adj, num_adj> A_I =
                             mat_exp<num_lvl, num_adj, dim>(l_sim_consts[mat_idx], t_e_middle);
 
