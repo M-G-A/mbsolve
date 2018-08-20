@@ -605,12 +605,98 @@ update_fdtd(unsigned int size, unsigned int border,
 #pragma omp simd aligned(t_d, t_e, t_p, t_h, t_mat_indices : ALIGN)
     for (int i = border; i < size - border - 1; i++) {
         int mat_idx = t_mat_indices[i];
-
-        real j = l_sim_consts[mat_idx].sigma * t_e[i];
-
-        t_e[i] += l_sim_consts[mat_idx].M_CE *
-            (-j - t_p[i] + (t_h[i + 1] - t_h[i]) *
-             l_sim_consts[mat_idx].d_x_inv);
+        
+        unsigned int y = (grid.num[1] > 1) ? 0 : 0;
+        do {
+            unsigned int z = (grid.num[2] > 1) ? 0 : 0;
+            do {
+                Eigen::Matrix<real, dim, 1> j = l_sim_consts[mat_idx].sigma
+                * t_e[grid.ind[i][y][z]];
+                switch (dim) {
+                    case 3:
+                        if(grid.num[2]==1){
+                            if ((y!=grid.num[1]-1) && (y!=0) && (z!=grid.num[2]-1) && (z!=0)) {
+                                t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE
+                                * (-j[0] - t_p[grid.ind[i][y][z]][0]
+                                   + (t_h[grid.ind[i][y+1][z]][2] - t_h[grid.ind[i][y][z]][2])
+                                   * l_sim_consts[mat_idx].d_r_inv[1]);      //dyHz
+                            }
+                            if ((z!=grid.num[2]-1) && (z!=0)) {
+                                t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE
+                                * (-j[1] - t_p[grid.ind[i][y][z]][1]
+                                   - (t_h[grid.ind[i+1][y][z]][2] - t_h[grid.ind[i][y][z]][2])
+                                   * l_sim_consts[mat_idx].d_r_inv[0]);    //dxHz
+                            }
+                            if ((y!=grid.num[1]-1) && (y!=0)) {
+                                t_e[grid.ind[i][y][z]][2] += l_sim_consts[mat_idx].M_CE
+                                * (-j[2] - t_p[grid.ind[i][y][z]][2]
+                                   + (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1])
+                                   * l_sim_consts[mat_idx].d_r_inv[0]      //dxHy
+                                   - (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
+                                   * l_sim_consts[mat_idx].d_r_inv[1]);    //dyHx
+                            }
+                        }else{
+                            /* for better accuracy one needs to add averaging of the polarization */
+                            if ((y!=grid.num[1]-1) && (y!=0) && (z!=grid.num[2]-1) && (z!=0)) {
+                                t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE
+                                * (-j[0] - t_p[grid.ind[i][y][z]][0]
+                                   + (t_h[grid.ind[i][y+1][z]][2] - t_h[grid.ind[i][y][z]][2])
+                                   * l_sim_consts[mat_idx].d_r_inv[1]      //dyHz
+                                   - (t_h[grid.ind[i][y][z+1]][1] - t_h[grid.ind[i][y][z]][1])
+                                   * l_sim_consts[mat_idx].d_r_inv[2]);    //dzHy
+                            }
+                            if ((z!=grid.num[2]-1) && (z!=0)) {
+                                t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE
+                                * (-j[1] - t_p[grid.ind[i][y][z]][1]
+                                   + (t_h[grid.ind[i][y][z+1]][0] - t_h[grid.ind[i][y][z]][0])
+                                   * l_sim_consts[mat_idx].d_r_inv[2]      //dzHx
+                                   - (t_h[grid.ind[i+1][y][z]][2] - t_h[grid.ind[i][y][z]][2])
+                                   * l_sim_consts[mat_idx].d_r_inv[0]);    //dxHz
+                                
+                            }
+                            if ((y!=grid.num[1]-1) && (y!=0)) {
+                                t_e[grid.ind[i][y][z]][2] += l_sim_consts[mat_idx].M_CE
+                                * (-j[2] - t_p[grid.ind[i][y][z]][2]
+                                   + (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1])
+                                   * l_sim_consts[mat_idx].d_r_inv[0]      //dxHy
+                                   - (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
+                                   * l_sim_consts[mat_idx].d_r_inv[1]);    //dyHx
+                            }
+                        }
+                        break;
+                        
+                    case 2:
+                        /* t_e[grid.ind[i][y][z]][0] += 0;
+                         t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE
+                         * (-j[1] - t_p[grid.ind[i][y][z]][1]
+                         + (t_h[grid.ind[i+1][y][z]][1] - t_h[grid.ind[i][y][z]][1])
+                         * l_sim_consts[mat_idx].d_r_inv[0]      //dxHy
+                         - (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
+                         * l_sim_consts[mat_idx].d_r_inv[1]);    //dyHx */
+                        /* the if correspondens to an antisymmetric boundary */
+                        if ((y!=grid.num[1]-1) && (y!=0)) {
+                            t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE
+                            * (-j[1] - (t_p[grid.ind[i][y][z]][0]+t_p[grid.ind[i][y+1][z]][0])/2
+                               - (t_h[grid.ind[i][y+1][z]][0] - t_h[grid.ind[i][y][z]][0])
+                               * l_sim_consts[mat_idx].d_r_inv[1]);    //Ex=-dzHy
+                        }
+                        t_e[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CE
+                        * (-j[1] - (t_p[grid.ind[i][y][z]][1]+t_p[grid.ind[i+1][y][z]][1])/2
+                           + (t_h[grid.ind[i+1][y][z]][0] - t_h[grid.ind[i][y][z]][0])
+                           * l_sim_consts[mat_idx].d_r_inv[0]);    //Ez=dxHy
+                        break;
+                        
+                    default:
+                        t_e[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CE
+                        * (-j[0] - t_p[grid.ind[i][y][z]][0]
+                           + (t_h[grid.ind[i+1][y][z]][0] - t_h[grid.ind[i][y][z]][0])
+                           * l_sim_consts[mat_idx].d_r_inv[0]);    //dxHy
+                        break;
+                }
+                z++;
+            } while (z<grid.num[2]);
+            y++;
+        } while (y<grid.num[1]);
         /*
         if (i >= border + 1) {
             t_h[i] += l_sim_consts[mat_idx].M_CH * (t_e[i] - t_e[i - 1]);
@@ -632,7 +718,65 @@ update_h(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
         int mat_idx = t_mat_indices[i];
 
         if (i >= border + 1) {
-            t_h[i] += l_sim_consts[mat_idx].M_CH * (t_e[i] - t_e[i - 1]);
+            unsigned int y = (grid.num[1] > 1) ? 1 : 0;
+            do {
+                unsigned int z = (grid.num[2] > 1) ? 1 : 0;
+                do {
+                    switch (dim) {
+                        case 3:
+                            if(grid.num[2]==1){
+                                t_h[grid.ind[i][y][z]][0] -= l_sim_consts[mat_idx].M_CH
+                                * ((t_e[grid.ind[i][y][z]][2] - t_e[grid.ind[i][y-1][z]][2])
+                                   * l_sim_consts[mat_idx].d_r_inv[1]);    //dyEz
+                                t_h[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CH
+                                * ( (t_e[grid.ind[i][y][z]][2] - t_e[grid.ind[i-1][y][z]][2])
+                                   * l_sim_consts[mat_idx].d_r_inv[0]);    //dxEz
+                                t_h[grid.ind[i][y][z]][2] -= l_sim_consts[mat_idx].M_CH
+                                * ((t_e[grid.ind[i][y][z]][1] - t_e[grid.ind[i-1][y][z]][1])
+                                   * l_sim_consts[mat_idx].d_r_inv[0]      //dxEy
+                                   - (t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i][y-1][z]][0])
+                                   * l_sim_consts[mat_idx].d_r_inv[1]);    //dyEx
+                            }else{
+                                t_h[grid.ind[i][y][z]][0] -= l_sim_consts[mat_idx].M_CH
+                                * ((t_e[grid.ind[i][y][z]][2] - t_e[grid.ind[i][y-1][z]][2])
+                                   * l_sim_consts[mat_idx].d_r_inv[1]      //dyEz
+                                   - (t_e[grid.ind[i][y][z]][1] - t_e[grid.ind[i][y][z-1]][1])
+                                   * l_sim_consts[mat_idx].d_r_inv[2]);    //dzEy
+                                t_h[grid.ind[i][y][z]][1] -= l_sim_consts[mat_idx].M_CH
+                                * ((t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i][y][z-1]][0])
+                                   * l_sim_consts[mat_idx].d_r_inv[2]      //dzEx
+                                   - (t_e[grid.ind[i][y][z]][2] - t_e[grid.ind[i-1][y][z]][2])
+                                   * l_sim_consts[mat_idx].d_r_inv[0]);    //dxEz
+                                t_h[grid.ind[i][y][z]][2] -= l_sim_consts[mat_idx].M_CH
+                                * ((t_e[grid.ind[i][y][z]][1] - t_e[grid.ind[i-1][y][z]][1])
+                                   * l_sim_consts[mat_idx].d_r_inv[0]      //dxEy
+                                   - (t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i][y-1][z]][0])
+                                   * l_sim_consts[mat_idx].d_r_inv[1]);    //dyEx
+                            }
+                            break;
+                        case 2:
+                            /* t_h[grid.ind[i][y][z]][0] -= l_sim_consts[mat_idx].M_CH
+                             * ((t_e[grid.ind[i][y][z]][1] - t_e[grid.ind[i][y-1][z]][1])
+                             * l_sim_consts[mat_idx].d_r_inv[1]);    //dyEz
+                             t_h[grid.ind[i][y][z]][1] += l_sim_consts[mat_idx].M_CH
+                             * ((t_e[grid.ind[i][y][z]][1] - t_e[grid.ind[i-1][y][z]][1])
+                             * l_sim_consts[mat_idx].d_r_inv[0]);    //dxEz */
+                            t_h[grid.ind[i][y][z]][0] -= l_sim_consts[mat_idx].M_CH
+                            * ((t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i][y-1][z]][0])
+                               * l_sim_consts[mat_idx].d_r_inv[1]
+                               - (t_e[grid.ind[i][y][z]][1] - t_e[grid.ind[i-1][y][z]][1])
+                               * l_sim_consts[mat_idx].d_r_inv[0]);    //Hy=dzEx-dxEz
+                            break;
+                        default:
+                            t_h[grid.ind[i][y][z]][0] += l_sim_consts[mat_idx].M_CH
+                            * ((t_e[grid.ind[i][y][z]][0] - t_e[grid.ind[i-1][y][z]][0])
+                               * l_sim_consts[mat_idx].d_r_inv[0]);    //dxEz
+                            break;
+                    }
+                    z++;
+                } while (z<grid.num[2]);
+                y++;
+            } while (y<grid.num[1]);
         }
     }
 }
