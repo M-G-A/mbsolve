@@ -46,13 +46,19 @@ private:
     std::vector<real> m_imag;
 
     bool m_is_complex;
-
+    unsigned int m_grid_num[3]={1,1,1};
+    
 public:
     explicit result(const std::string& name, unsigned int cols,
-		    unsigned int rows, bool is_complex = false) :
+            unsigned int rows, unsigned int *grid_num=NULL, bool is_complex = false) :
 	m_name(name), m_cols(cols), m_rows(rows), m_count(cols * rows),
         m_real(cols * rows), m_imag(cols * rows), m_is_complex(is_complex)
     {
+        if(grid_num != nullptr){
+            for (unsigned int dim_num=0; dim_num<3; dim_num++) {
+                m_grid_num[dim_num] = grid_num[dim_num];
+            }
+        }
     }
 
     ~result() {
@@ -90,6 +96,11 @@ public:
 
     std::vector<complex> get_data_complex() const;
 
+    unsigned int
+    get_num_gridpoints(unsigned int dim_num = 0){
+        return m_grid_num[dim_num];
+    }
+    
 };
 
 }
