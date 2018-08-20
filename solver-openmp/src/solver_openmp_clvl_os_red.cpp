@@ -826,36 +826,53 @@ complex mexp(const complex& arg)
     return std::exp(arg);
 }
 
-template<unsigned int num_lvl, unsigned int num_adj>
+template<unsigned int num_lvl, unsigned int num_adj, unsigned int dim>
 inline Eigen::Matrix<real, num_adj, num_adj>
-mat_exp(const sim_constants_clvl_os<num_lvl>& s, real e)
+mat_exp(const sim_constants_clvl_os<num_lvl,dim>& s, Eigen::Matrix<real, dim, 1> e)
 {
     Eigen::Matrix<real, num_adj, num_adj> ret;
 
 #if EXP_METHOD==1
     /* by diagonalization */
-    Eigen::Matrix<complex, num_adj, 1> diag_exp = s.L * e;
-    diag_exp = diag_exp.unaryExpr(&mexp);
-
-    ret = (s.B * diag_exp.asDiagonal() * s.B.adjoint()).real();
+    ret = Eigen::Matrix<real, num_adj, num_adj>::Identity();
+    for (unsigned int dim_num=0; dim_num<dim; dim_num++){
+        if (!s.U[dim_num].isZero()) {
+            Eigen::Matrix<complex, num_adj, 1> diag_exp = s.L[dim_num] * e[dim_num];
+            diag_exp = diag_exp.unaryExpr(&mexp);
+            ret *= (s.B[dim_num] * diag_exp.asDiagonal() * s.B[dim_num].adjoint()).real();
+        }
+    }
+    
 #elif EXP_METHOD==2
     /* analytic solution */
-    if (num_lvl == 2) {
-        /* Rodrigues formula */
-        ret = sin(s.theta_1 * e * s.d_t)/s.theta_1 * s.U +
-            (1 - cos(s.theta_1 * e * s.d_t))/(s.theta_1 * s.theta_1) * s.U2 +
-            Eigen::Matrix<real, num_adj, num_adj>::Identity();
-    } else {
-        ret = Eigen::Matrix<real, num_adj, num_adj>::Identity();
-        for (int i = 0; i < num_adj/2; i++) {
-            /* TODO nolias()? */
-            ret += sin(s.theta[i] * e * s.d_t) * s.coeff_1[i] +
-                (1 - cos(s.theta[i] * e * s.d_t)) * s.coeff_2[i];
+    ret = Eigen::Matrix<real, num_adj, num_adj>::Identity();
+    for (unsigned int dim_num=0; dim_num<dim; dim_num++){
+        if (!s.U[dim_num].isZero()) {
+            if (num_lvl == 2) {
+                /* Rodrigues formula */
+                ret *= sin(s.theta_1[dim_num] * e[dim_num] * s.d_t)/s.theta_1[dim_num] * s.U[dim_num]
+                + (1 - cos(s.theta_1[dim_num] * e[dim_num] * s.d_t))/(s.theta_1[dim_num] * s.theta_1[dim_num])
+                * s.U2[dim_num] + Eigen::Matrix<real, num_adj, num_adj>::Identity();
+            } else {
+                Eigen::Matrix<real, num_adj, num_adj> temp = Eigen::Matrix<real, num_adj, num_adj>::Identity();
+                for (int i = 0; i < num_adj/2; i++) {
+                    /* TODO nolias()? */
+                    temp += sin(s.theta[dim_num][i] * e[dim_num] * s.d_t) * s.coeff_1[dim_num][i]
+                    + (1 - cos(s.theta[dim_num][i] * e[dim_num] * s.d_t)) * s.coeff_2[dim_num][i];
+                }
+                ret*=temp;
+            }
         }
     }
 #else
     /* Eigen matrix exponential */
-    ret = (s.U * e * s.d_t).exp();
+    ret = Eigen::Matrix<real, num_adj, num_adj>::Zero();
+    for (unsigned int dim_num=0; dim_num<dim; dim_num++){
+        if (!s.U[dim_num].isZero()) {
+            ret+=s.U[dim_num] * e[dim_num];
+        }
+    }
+    ret = (ret * s.d_t).exp();
 #endif
 
     return ret;
@@ -869,41 +886,84 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
          sim_constants_clvl_os<num_lvl,dim> *l_sim_consts, sim_grid grid)
 {
     //#pragma omp simd aligned(t_d, t_e, t_mat_indices : ALIGN)
-    for (int i = border; i < size - border - 1; i++) {
+    for (int i = border+1; i < size - border - 1; i++) {
         int mat_idx = t_mat_indices[i];
 
-        if (l_sim_consts[mat_idx].has_qm) {
-            /* update density matrix */
-            Eigen::Matrix<real, num_adj, 1> d1, d2;
+        unsigned int z = (grid.num[2] > 1) ? 1 : 0;
+        do {
+            Eigen::Matrix<real, num_adj, 1> d1[grid.num[1]];
+            real w_old[grid.num[1]];
+            
+            unsigned int y = (grid.num[1] > 1) ? 1 : 0;
+            do {
 
-            /* time-indepedent half step */
-            d1 = l_sim_consts[mat_idx].A_0 *
-                (t_d[i] + l_sim_consts[mat_idx].d_in)
-                - l_sim_consts[mat_idx].d_in;
+                if (l_sim_consts[mat_idx].has_qm) {
+                    /* update density matrix */
 
-            /* time-dependent full step */
-            if (l_sim_consts[mat_idx].has_dipole) {
-                /* determine time-dependent propagator */
-                Eigen::Matrix<real, num_adj, num_adj> A_I =
-                    mat_exp<num_lvl, num_adj>(l_sim_consts[mat_idx], t_e[i]);
-                d2 = A_I * d1;
-            } else {
-                d2 = d1;
+                    /* time-indepedent half step */
+                    d1[y] = l_sim_consts[mat_idx].A_0
+                    * (t_d[grid.ind[i][y][z]] + l_sim_consts[mat_idx].d_in)
+                    - l_sim_consts[mat_idx].d_in;
+                } else {
+                    t_p[grid.ind[i][y][z]] = Eigen::Matrix<real, dim, 1>::Zero();
+                }
+                y++;
+            } while (y<grid.num[1]);
+            if (l_sim_consts[mat_idx].has_qm) {
+                unsigned int y = (grid.num[1] > 1) ? 1 : 0;
+                do {
+                    Eigen::Matrix<real, num_adj, 1> d2;
+                    /* time-dependent full step */
+                    if (l_sim_consts[mat_idx].has_dipole) {
+                        /* determine time-dependent propagator */
+                        Eigen::Matrix<real, dim, 1> t_e_middle;
+                        /* get the average E-Field at the position of the quantumsystem */
+                        if (dim==3){
+                            if(grid.num[2]==1){
+                            }else{
+                                t_e_middle[0] = (t_e[grid.ind[i][y][z]][0]
+                                                 +t_e[grid.ind[i][y-1][z]][0]
+                                                 +t_e[grid.ind[i][y][z-1]][0]
+                                                 +t_e[grid.ind[i][y-1][z-1]][0])/4;
+                                t_e_middle[1] = (t_e[grid.ind[i][y][z]][1]
+                                                 +t_e[grid.ind[i][y][z-1]][1]
+                                                 +t_e[grid.ind[i-1][y][z]][1]
+                                                 +t_e[grid.ind[i-1][y][z-1]][1])/4;
+                                t_e_middle[2] = (t_e[grid.ind[i][y][z]][2]
+                                                 +t_e[grid.ind[i-1][y][z]][2]
+                                                 +t_e[grid.ind[i][y-1][z]][2]
+                                                 +t_e[grid.ind[i-1][y-1][z]][2])/4;
+                            }
+                        }else if (dim==2) {
+                            t_e_middle[0] = (t_e[grid.ind[i][y][z]][0]+t_e[grid.ind[i][y-1][z]][0])/2;
+                            t_e_middle[1] = (t_e[grid.ind[i][y][z]][1]+t_e[grid.ind[i-1][y][z]][1])/2;
+                        }else{
+                            t_e_middle[0] = t_e[grid.ind[i][y][z]][0];
+                        }
+
+                        Eigen::Matrix<real, num_adj, num_adj> A_I =
+                        mat_exp<num_lvl, num_adj, dim>(l_sim_consts[mat_idx], t_e_middle);
+                        d2 = A_I * d1[y];
+                    } else {
+                        d2 = d1[y];
+                    }
+
+                    /* time-indepedent half step */
+                    t_d[grid.ind[i][y][z]] = l_sim_consts[mat_idx].A_0
+                    * (d2 + l_sim_consts[mat_idx].d_in)
+                    - l_sim_consts[mat_idx].d_in;
+                    /* update polarization */
+                    for (unsigned int dim_num=0; dim_num<dim; dim_num++){
+                        t_p[grid.ind[i][y][z]][dim_num] = l_sim_consts[mat_idx].M_CP
+                        * l_sim_consts[mat_idx].v[dim_num].transpose()
+                        * (l_sim_consts[mat_idx].M * t_d[grid.ind[i][y][z]]
+                           + l_sim_consts[mat_idx].d_eq);
+                    }
+                    y++;
+                } while (y<grid.num[1]);
             }
-
-            /* time-indepedent half step */
-            t_d[i] = l_sim_consts[mat_idx].A_0 *
-                (d2 + l_sim_consts[mat_idx].d_in)
-                - l_sim_consts[mat_idx].d_in;
-
-            /* update polarization */
-            t_p[i] = l_sim_consts[mat_idx].M_CP *
-                l_sim_consts[mat_idx].v.transpose() *
-                (l_sim_consts[mat_idx].M * t_d[i] +
-                 l_sim_consts[mat_idx].d_eq);
-        } else {
-            t_p[i] = 0.0;
-        }
+            z++;
+        } while (z<grid.num[2]);
     }
 }
 
