@@ -20,6 +20,7 @@
  */
 
 #define ABSORBING_BOUNDARY 0
+#define CURRENT_MODEL 1
 
 #ifndef MBSOLVE_SOLVER_OPENMP_3LVL_OS_RED_H
 #define MBSOLVE_SOLVER_OPENMP_3LVL_OS_RED_H
@@ -141,6 +142,10 @@ private:
     real *m_e_0;
     real *m_e_L;
     real m_s[6];
+#endif
+    
+#if CURRENT_MODEL!=0
+    real **m_w;
 #endif
     
     sim_grid grid;

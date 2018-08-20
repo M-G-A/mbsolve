@@ -324,6 +324,9 @@ solver_openmp_clvl_os_red<num_lvl, dim>::solver_openmp_clvl_os_red
     m_h = new Eigen::Matrix<real, dim, 1>*[P];
     m_p = new Eigen::Matrix<real, dim, 1>*[P];
     m_mat_indices = new unsigned int*[P];
+#if CURRENT_MODEL!=0
+    m_w = new real*[P];
+#endif
 
     unsigned int *l_mat_indices = new unsigned int[grid.num[0]];
 
@@ -463,6 +466,10 @@ solver_openmp_clvl_os_red<num_lvl, dim>::solver_openmp_clvl_os_red
                                         sizeof(Eigen::Matrix<real, dim, 1>));
             m_mat_indices[tid] = (unsigned int *)
                 mb_aligned_alloc((chunk + 2 * OL) * sizeof(unsigned int));
+#if CURRENT_MODEL!=0
+            m_w[tid] = (real *) mb_aligned_alloc(size * sizeof(real));
+#endif
+
         }
         
 #if ABSORBING_BOUNDARY == 1
@@ -523,6 +530,12 @@ solver_openmp_clvl_os_red<num_lvl, dim>::solver_openmp_clvl_os_red
             __mb_assume_aligned(t_p);
             __mb_assume_aligned(t_h);
             __mb_assume_aligned(t_mat_indices);
+            
+#if CURRENT_MODEL!=0
+            real *t_w;
+            t_w = m_w[tid];
+            __mb_assume_aligned(t_w);
+#endif
 
             for (int i = 0; i < size; i++) {
                 unsigned int global_idx = tid * chunk_base + (i - OL);
@@ -548,6 +561,9 @@ solver_openmp_clvl_os_red<num_lvl, dim>::solver_openmp_clvl_os_red
                         // t_e[grid.ind[i][y][z]][dim-1] = 1.5*y/grid.num[1]*dev->get_length(1); //bias-voltage
                         t_p[grid.ind[i][y][z]] = Eigen::Matrix<real, dim, 1>::Zero();
                         t_h[grid.ind[i][y][z]] = Eigen::Matrix<real, dim, 1>::Zero();
+#if CURRENT_MODEL!=0
+                        t_w[grid.ind[i][y][z]] = 1.0/grid.num[1];
+#endif
                     }
                 }
             }
@@ -588,6 +604,9 @@ solver_openmp_clvl_os_red<num_lvl, dim>::~solver_openmp_clvl_os_red()
             mb_aligned_free(m_p[tid]);
             mb_aligned_free(m_d[tid]);
             mb_aligned_free(m_mat_indices[tid]);
+#if CURRENT_MODEL!=0
+            mb_aligned_free(m_w[tid]);
+#endif
         }
 #ifdef XEON_PHI_OFFLOAD
     }
@@ -605,6 +624,10 @@ solver_openmp_clvl_os_red<num_lvl, dim>::~solver_openmp_clvl_os_red()
     delete[] m_p;
     delete[] m_d;
     delete[] m_mat_indices;
+#if CURRENT_MODEL!=0
+    delete[] m_w;
+#endif
+    
     for(unsigned int x = 0; x < grid.num[0]; x++) {
         for(unsigned int y = 0; y < grid.num[1]; y++) {
             delete[] grid.ind[x][y];
@@ -932,6 +955,54 @@ mat_exp(const sim_constants_clvl_os<num_lvl,dim>& s, Eigen::Matrix<real, dim, 1>
 
     return ret;
 }
+    
+#if CURRENT_MODEL!=0
+    template<unsigned int num_lvl>
+    Eigen::Matrix<real, 3, 1> adj(Eigen::Matrix<real, num_lvl-1, 1> d){
+        Eigen::Matrix<real, 3, 1> ret;
+        ret[0]=0.3333333333-0.5*d[0]-0.2886751346*d[1];
+        ret[1]=0.3333333333+0.5*d[0]-0.2886751346*d[1];
+        ret[2]=0.3333333333+0.5773502692*d[1];
+        return ret;
+    }
+    template<unsigned int num_lvl>
+    inline Eigen::Matrix<real, num_lvl, 1>
+    couple(real dt, Eigen::Matrix<real, 3, 1> w, Eigen::Matrix<real, num_lvl-1, 1> d_dipole,
+           Eigen::Matrix<real, num_lvl-1, 1> d,Eigen::Matrix<real,
+           num_lvl-1, 1> d_n,Eigen::Matrix<real, num_lvl-1, 1> d_p){
+        real tau_42_inv = 0.0018e12;
+        real tau_43_inv = 0.0013e12;
+        real tau_24_inv = 0.0464e12;
+        real tau_34_inv = 0.6196e12;
+        real dt1_inv=tau_42_inv+tau_43_inv;
+        Eigen::Matrix<real, num_lvl, 1> ret;
+        Eigen::Matrix<real, 3, 1> rho;
+        Eigen::Matrix<real, 3, 1> tmp;
+        tmp=-adj<num_lvl>(d);
+        tmp[0]*=dt1_inv;
+        tmp[1]*=tau_24_inv;
+        if (w[2]==0) {
+            tmp[2]*=1/dt;
+        }else{
+            tmp[2]*=tau_34_inv;
+        }
+        rho=w[1]*(adj<num_lvl>(d_dipole)+dt*tmp);
+        if (w[0]==-1) {
+            rho[0]+=3.9000e-07;
+        } else {
+            tmp=adj<num_lvl>(d_n);
+            rho[0]+=w[0]*dt*(tau_24_inv*tmp[1]+tau_34_inv*tmp[2]);
+        }
+        tmp=adj<num_lvl>(d_p);
+        rho[1]+=w[2]*dt*tau_42_inv*tmp[0];
+        rho[2]+=w[2]*dt*tau_43_inv*tmp[0];
+        
+        ret[2]=rho[0]+rho[1]+rho[2];
+        ret[1]=sqrt(3)*(rho[2]/ret[2]-0.3333333333);
+        ret[0]=2*(rho[1]/ret[2]-0.3333333333+0.2886751346*ret[1]);
+        return ret;
+    }
+#endif
 
 template<unsigned int num_lvl, unsigned int num_adj, unsigned int dim>
 void
@@ -951,6 +1022,9 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
             
             unsigned int y = (grid.num[1] > 1) ? 1 : 0;
             do {
+#if CURRENT_MODEL!=0
+                w_old[y] = t_w[grid.ind[i][y][z]];
+#endif
 
                 if (l_sim_consts[mat_idx].has_qm) {
                     /* update density matrix */
@@ -1002,6 +1076,44 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
                     } else {
                         d2 = d1[y];
                     }
+                    
+
+#if CURRENT_MODEL!=0
+                    real w_temp = t_w[grid.ind[i][y][z]];
+                    Eigen::Matrix<real, 3, 1> w;
+                    Eigen::Matrix<real, num_lvl, 1> ret;
+                    int n;
+                    int p;
+                    if (y==grid.num[1]-1){
+                        n=y-1;
+                        p=1;
+                    } else if(y==1){
+                        n=grid.num[1]-1;
+                        p=y+1;
+                    } else {
+                        n=y-1;
+                        p=y+1;
+                    }
+                    w[0]=w_old[n];
+                    w[1]=w_old[y];
+                    w[2]=w_old[p];
+#if CURRENT_MODEL==2
+                    if (y==1){
+                        w[0]=-1;
+                    }else if(y==grid.num[1]-1){
+                        w[2]=0;
+                    }
+#endif
+                    
+                    ret=couple<num_lvl>(l_sim_consts[mat_idx].d_t, w,
+                                        d2.block(6,0,2,1),
+                                        d1[y].block(6,0,2,1),
+                                        d1[n].block(6,0,2,1),
+                                        d1[p].block(6,0,2,1));
+                    d2.block(6,0,2,1)=ret.block(0,0,2,1);
+                    t_w[grid.ind[i][y][z]] = ret[2];
+                    d2.block(0,0,6,1)=w_temp/ret[2]*d1[y].block(0,0,6,1);
+#endif
 
                     /* time-indepedent half step */
                     t_d[grid.ind[i][y][z]] = l_sim_consts[mat_idx].A_0
@@ -1013,6 +1125,16 @@ update_d(unsigned int size, unsigned int border, Eigen::Matrix<real, dim, 1> *t_
                         * l_sim_consts[mat_idx].v[dim_num].transpose()
                         * (l_sim_consts[mat_idx].M * t_d[grid.ind[i][y][z]]
                            + l_sim_consts[mat_idx].d_eq);
+                        
+#if CURRENT_MODEL!=0
+                        t_p[grid.ind[i][y][z]][dim_num] *= t_w[grid.ind[i][y][z]];
+                        if ((y!=1) && (y!= grid.num[1]-1)) {
+                            /* j_z = e0 * N/V * deltaL * delta Trace(G)/ delta t */
+                            t_p[grid.ind[i][y][z]][dim-1] -= 0.0090/l_sim_consts[mat_idx].d_t
+                            *(t_w[grid.ind[i][y][z]]-w_old[y]);
+                        }
+#endif
+                        
                     }
                     y++;
                 } while (y<grid.num[1]);
@@ -1076,6 +1198,10 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
             __mb_assume_aligned(m_result_scratch);
 
             real *t_w;
+#if CURRENT_MODEL!=0
+            t_w = m_w[tid];
+            __mb_assume_aligned(t_w);
+#endif
             
             /* gather prev and next pointers from other threads */
             Eigen::Matrix<real, num_adj, 1> *n_d, *p_d;
@@ -1244,6 +1370,10 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
                                                     temp += 0.5 * t_d[s_index](l) *
                                                     m_generators[l](ridx, cidx).real();
                                                 }
+                                                
+#if CURRENT_MODEL!=0
+                                                temp*=t_w[s_index];
+#endif
 
                                                 m_result_scratch[r_index-1] = temp;
                                                 /* TODO: coherences
