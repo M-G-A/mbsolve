@@ -787,51 +787,39 @@ apply_sources(Eigen::Matrix<real, dim, 1> *t_e, real *source_data,
               unsigned int num_sources, sim_source *l_sim_sources, unsigned int time,
               unsigned int base_pos, unsigned int chunk, sim_grid grid, unsigned int time_num)
 {
+    real src = 0.0;
     for (unsigned int k = 0; k < num_sources; k++) {
-        int at = l_sim_sources[k].x_idx - base_pos + OL;
+        int at = l_sim_sources[k].x_idx[0] - base_pos + OL;
         if ((at > 0) && (at < chunk + 2 * OL)) {
-            real src = source_data[l_sim_sources[k].data_base_idx + time];
             if (l_sim_sources[k].type == source::type::hard_source) {
-                t_e[at] = src;
+                unsigned int y = 0;
+                do {
+                    unsigned int z = 0;
+                    do {
+                        for (unsigned int dim_num=0; dim_num<dim; dim_num++){
+                            src = source_data[l_sim_sources[k].data_base_idx + time + time_num * ((y*grid.num[2]+z)*dim + dim_num)];
+                            t_e[grid.ind[at][y][z]][dim_num] = src;
+                        }
+                        z++;
+                    } while (z<grid.num[2]);
+                    y++;
+                } while (y<grid.num[1]);
             } else if (l_sim_sources[k].type == source::type::soft_source) {
                 /* TODO: fix source */
-                t_e[at] += src;
+                unsigned int y = 0;
+                do {
+                    unsigned int z = 0;
+                    do {
+                        t_e[grid.ind[at][y][z]][dim-1] += src*(1-z/(grid.num[2]));
+                        z++;
+                    } while (z<grid.num[2]);
+                    y++;
+                } while (y<grid.num[1]);
             } else {
             }
         }
     }
 }
-
-#if 0
-
-//
-    /* split A0 and P */
-    Eigen::Array<complex, num_adj, 1> B_I;
-    B_I = l_sim_consts[mat_idx].L * t_e[i];
-    B_I = B_I.exp();
-
-    Eigen::Matrix<real, num_adj, num_adj> B =
-        (l_sim_consts[mat_idx].B *
-         B_I.matrix().asDiagonal() *
-         l_sim_consts[mat_idx].B.adjoint()).real();
-
-    t_d[i] = l_sim_consts[mat_idx].A_0 * B *
-        l_sim_consts[mat_idx].A_0 * t_d[i];
-
-//#elif EXP_METHOD==3
-    /* analytic solution? */
-
-//#else
-    /* Eigen matrix exponential */
-    Eigen::Matrix<real, num_adj, num_adj> B =
-        (l_sim_consts[mat_idx].U * t_e[i] *
-         l_sim_consts[mat_idx].d_t).exp();
-
-    t_d[i] = l_sim_consts[mat_idx].A_0 * B *
-        l_sim_consts[mat_idx].A_0 * t_d[i];
-
-//#endif
-#endif
 
 complex mexp(const complex& arg)
 {
