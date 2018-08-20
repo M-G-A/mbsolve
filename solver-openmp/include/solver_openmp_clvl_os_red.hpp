@@ -30,7 +30,13 @@
 
 namespace mbsolve {
 
-template<unsigned int num_lvl>
+/* struct def shouldn't be here -> mbsolve-lib/types? */
+struct sim_grid{
+    unsigned int ***ind;
+    unsigned int *num;
+};
+    
+template<unsigned int num_lvl, unsigned int dim>
 class sim_constants_clvl_os
 {
     static const unsigned int num_adj = num_lvl * num_lvl - 1;
@@ -48,28 +54,28 @@ public:
     bool has_dipole;
 
     /* analytic solution precalc */
-    real_matrix_t coeff_1[num_adj/2];
-    real_matrix_t coeff_2[num_adj/2];
-    real theta[num_adj/2];
+    real_matrix_t coeff_1[dim][num_adj/2];
+    real_matrix_t coeff_2[dim][num_adj/2];
+    real theta[dim][num_adj/2];
 
     /* rodrigues formula precalc */
-    real_matrix_t U2;
-    real theta_1;
+    real_matrix_t U2[dim];
+    real theta_1[dim];
 
     /* constant propagator A_0 = exp(M dt/2) */
     real_matrix_t A_0;
 
     /* unitary transformation matrix */
-    complex_matrix_t B;
+    complex_matrix_t B[dim];
 
     /* required for polarization calc ? */
     real_matrix_t M;
-    real_matrix_t U;
+    real_matrix_t U[dim];
     real_vector_t d_in;
     real_vector_t d_eq;
 
     /* dipole moments */
-    real_vector_t v;
+    real_vector_t v[dim];
 
     /* diagonalized interaction propagator */
     /* TODO: special type for diagonal matrix? */
@@ -83,7 +89,7 @@ public:
     real sigma;
 
     /* simulation constants */
-    real d_x_inv;
+    real d_r_inv[dim];
     real d_t;
 
     /* initialization constants */
@@ -91,7 +97,7 @@ public:
 
 };
 
-template<unsigned int num_lvl>
+template<unsigned int num_lvl, unsigned int dim>
 class solver_openmp_clvl_os_red : public solver_int
 {
     static const unsigned int num_adj = num_lvl * num_lvl - 1;
@@ -125,9 +131,11 @@ private:
 
     std::vector<qm_operator_t > m_generators;
 
-    real **m_h;
-    real **m_e;
-    real **m_p;
+    Eigen::Matrix<real, dim, 1> **m_h;
+    Eigen::Matrix<real, dim, 1> **m_e;
+    Eigen::Matrix<real, dim, 1> **m_p;
+    
+    sim_grid grid;
 
     real *m_result_scratch;
 
@@ -143,9 +151,9 @@ private:
     copy_list_entry *l_copy_list;
 #endif
     sim_source *l_sim_sources;
-    sim_constants_clvl_os<num_lvl> *l_sim_consts;
+    sim_constants_clvl_os<num_lvl,dim> *l_sim_consts;
 
-    std::vector<sim_constants_clvl_os<num_lvl> > m_sim_consts;
+    std::vector<sim_constants_clvl_os<num_lvl,dim> > m_sim_consts;
 
     std::vector<sim_source> m_sim_sources;
 
@@ -248,7 +256,7 @@ private:
 
 };
 
-typedef solver_openmp_clvl_os_red<3> solver_openmp_3lvl_os_red;
+typedef solver_openmp_clvl_os_red<3,1> solver_openmp_3lvl_os_red;
 
 }
 
