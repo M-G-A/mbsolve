@@ -56,6 +56,10 @@ writer_matlab::write(const std::string& file,
     }
 
     /* put scenario data */
+    t = mxCreateDoubleScalar(scen->m_dim);
+    matPutVariable(pmat, "Dimension", t);
+    mxDestroyArray(t);
+    
     t = mxCreateDoubleScalar(scen->get_endtime());
     matPutVariable(pmat, "SimEndTime", t);
     mxDestroyArray(t);
@@ -64,32 +68,64 @@ writer_matlab::write(const std::string& file,
     matPutVariable(pmat, "TimeStepSize", t);
     mxDestroyArray(t);
 
-    t = mxCreateDoubleScalar(scen->get_gridpoint_size());
-    matPutVariable(pmat, "GridPointSize", t);
-    mxDestroyArray(t);
+    /* put gridpoint-size */
+    double *pr;
+    mxArray *var = mxCreateDoubleMatrix(scen->m_dim, 1, mxREAL);
+    pr=mxGetPr(var);
+    double *data = new double [scen->m_dim];
+    for (unsigned int dim_num=0; dim_num<scen->m_dim; dim_num++) {
+        data[dim_num]=scen->get_gridpoint_size(dim_num);
+    }
+    std::copy(data, data + scen->m_dim, mxGetPr(var));
+    matPutVariable(pmat, "GridPointSize", var);
+    mxDestroyArray(var);
 
     /* put device data */
-    t = mxCreateDoubleScalar(dev->get_length());
-    matPutVariable(pmat, "XDim", t);
-    mxDestroyArray(t);
+    var = mxCreateDoubleMatrix(scen->m_dim, 1, mxREAL);
+    pr=mxGetPr(var);
+    for (unsigned int dim_num=0; dim_num<scen->m_dim; dim_num++) {
+        data[dim_num]=dev->get_length(dim_num);
+    }
+    std::copy(data, data + scen->m_dim, mxGetPr(var));
+    matPutVariable(pmat, "DeviceDimension", var);
+    mxDestroyArray(var);
 
     /* put result data */
+    mwSize length [1]= {scen->get_num_records()};
+    mxArray *names = mxCreateCellArray(1, length);
+    mwSize records=0;
     for (auto r : results) {
         /* matlab array is created transposed in order to match order */
-        mxArray *var = mxCreateDoubleMatrix(r->get_cols(), r->get_rows(),
-                                            mxCOMPLEX);
-
+        mxSetCell(names, records, mxCreateString(r->get_name().c_str()));
+        records++;
+        
+        auto temp = mxComplexity::mxREAL;
+        if (r->is_complex()) {
+            temp = mxComplexity::mxCOMPLEX;
+        }
+        
+        const mwSize ndim = 4;
+        const mwSize dims[4] = {r->get_num_gridpoints(2),r->get_num_gridpoints(1),r->get_num_gridpoints(0),r->get_rows()};
+        mxArray *var=mxCreateNumericArray( ndim,
+                                          dims,
+                                          mxDOUBLE_CLASS,
+                                          temp);
         auto data_real = r->get_data_real().cbegin();
-        auto data_imag = r->get_data_imag().cbegin();
-
         std::copy(data_real, data_real + r->get_count(), mxGetPr(var));
-        std::copy(data_imag, data_imag + r->get_count(), mxGetPi(var));
+        
+        if (r->is_complex()) {
+            auto data_imag = r->get_data_imag().cbegin();
+            std::copy(data_imag, data_imag + r->get_count(), mxGetPi(var));
+        }
 
         matPutVariable(pmat, r->get_name().c_str(), var);
 
         mxDestroyArray(var);
     }
 
+    matPutVariable(pmat, "records", names);
+    mxDestroyArray(names);
+    
     /* close result file */
     matClose(pmat);
 }

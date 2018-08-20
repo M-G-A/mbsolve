@@ -136,4 +136,9 @@ scenario::set_dm_init_type(scenario::dm_init_type type)
     m_dm_init_type = type;
 }
 
+unsigned int scenario::get_num_records() const
+{
+    return m_records.size();
+}
+
 }
