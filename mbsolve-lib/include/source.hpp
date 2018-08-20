@@ -50,28 +50,31 @@ protected:
     real m_phase;
 
     /* position */
-    real m_position;
+    real *m_position;
 
     /* internal resistance */
     real m_r_i;
 
     type m_type;
+    
+    real *m_pol;
 
 public:
 
-    source(const std::string& name, real position, type source_type,
+    source(const std::string& name, real *position, type source_type, real *pol,
            real ampl, real freq, real phase = 0) :
-        m_name(name), m_position(position), m_type(source_type),
+        m_name(name), m_position(position), m_type(source_type), m_pol(pol),
         m_ampl(ampl), m_freq(freq), m_phase(phase)
     {
     }
 
     /* TODO: get_value/calc_value : simplify */
 
-    real get_value(real t, real current_value = 0.0) const
+ real get_value(real t, unsigned int dim_num = 0, real y = 0.0, real z = 0.0,
+                real current_value = 0.0) const
     {
         /* calculate source value */
-        real val = m_ampl * calc_value(t);
+        real val = m_ampl * calc_value(t,dim_num,y,z);
 
         /* if type == thevenin, consider internal resistance */
 
@@ -83,13 +86,14 @@ public:
     }
 
     /* calculate new value */
-    virtual real calc_value(real /* t */) const
+    virtual real calc_value(real /* t */,unsigned int /* dim_num */,
+                            real /* y */, real /* z */) const
     {
         return 0.0;
     }
 
-    real get_position() const {
-        return m_position;
+    real get_position(unsigned int dim_num = 0) const {
+        return m_position[dim_num];
     }
 
     type get_type() const {
@@ -132,19 +136,57 @@ private:
     real m_phase_sin;
 
 public:
-    sech_pulse(const std::string& name, real position, type source_type,
+    sech_pulse(const std::string& name, real *position, type source_type,
+               real *pol,
                real ampl, real freq,
                real phase,
                real beta, real phase_sin = 0.0) :
-        source(name, position, source_type, ampl, freq, phase), m_beta(beta),
+        source(name, position, source_type, pol, ampl, freq, phase), m_beta(beta),
         m_phase_sin(phase_sin)
     {
     }
 
-    real calc_value(real t) const
+    real calc_value(real t, unsigned int dim_num, real y, real z) const
     {
-        return 1/std::cosh(m_beta * t - m_phase) *
+        real ret = 0.0;
+        ret = 1/std::cosh(m_beta * t - m_phase) *
             sin(2 * M_PI * m_freq * t - m_phase_sin);
+        //        if ((pow(y-m_position[1],2)<0.01) && (pow(z-m_position[2],2)<0.01)) {
+        //        }
+        return ret*m_pol[dim_num];
+    }
+    
+};
+    
+class sech_pulse2 : public source
+    {
+private:
+        
+    real m_beta;
+    real m_phase_sin;
+        
+public:
+    sech_pulse2(const std::string& name, real *position, type source_type,
+                real *pol,
+                real ampl, real freq,
+                real phase,
+                real beta, real phase_sin = 0.0) :
+    source(name, position, source_type, pol, ampl, freq, phase), m_beta(beta),
+    m_phase_sin(phase_sin)
+    {
+    }
+
+    real calc_value(real t, unsigned int dim_num, real y, real z) const
+    {
+        real ret = 0.0;
+        ret = 1/std::cosh(m_beta * t - m_phase) *
+        sin(2 * M_PI * m_freq * t - m_phase_sin);
+        if (dim_num==0) {
+            ret *= -1/(2*m_freq*EPS0*9.9185e-6) * std::sin(M_PI*y);
+        } else if (dim_num==1) {
+            ret *= 375.652 * std::cos(M_PI*y);
+        }
+        return ret*m_pol[dim_num];
     }
 
 };
@@ -155,19 +197,134 @@ private:
     real m_beta;
 
 public:
-    single_cycle_pulse(const std::string& name, real position,
-                       type source_type,
+    single_cycle_pulse(const std::string& name, real *position,
+                       type source_type, real *pol,
                        real ampl, real freq,
                        real phase,
                        real beta) :
-        source(name, position, source_type, ampl, freq, phase), m_beta(beta)
+        source(name, position, source_type, pol, ampl, freq, phase), m_beta(beta)
     {
     }
 
-    real calc_value(real t) const
+    real calc_value(real t, unsigned int dim_num, real y, real z) const
     {
         return 1/std::cosh(m_beta * (t - m_phase)) *
-            sin(2 * M_PI * m_freq * (t - m_phase - 1/(m_freq * 4)));
+        sin(2 * M_PI * m_freq * (t - m_phase - 1/(m_freq * 4)))*m_pol[dim_num];
+    }
+};
+    
+class gauss : public source
+{
+private:
+    real m_beta;
+    real m_sigma;
+    real m_phase_sin;
+public:
+    gauss(const std::string& name, real *position, type source_type, real *pol,
+          real ampl, real freq,
+          real phase, real sigma, real beta, real phase_sin = 0.0) :
+    source(name, position, source_type, pol, ampl, freq, phase), m_sigma(sigma),
+    m_beta(beta), m_phase_sin(phase_sin)
+    {
+    }
+    real calc_value(real t, unsigned int dim_num, real y_p, real z_p) const
+    {
+        real ret;
+        real y = y_p - m_position[1];
+        real z = z_p - m_position[2];
+        
+        ret = 1/std::cosh(m_beta * t - m_phase) * sin(2 * M_PI * m_freq * t - m_phase_sin);
+        ret *= 1/(std::sqrt(2*M_PI*pow(m_sigma,2)))*
+        std::exp(-1*pow(y,2)/(2*pow(m_sigma,2)));
+        ret *= 1/(std::sqrt(2*M_PI*pow(m_sigma,2)))*
+        std::exp(-1*pow(z,2)/(2*pow(m_sigma,2)));
+        
+        return ret*m_pol[dim_num];
+    }
+};
+    
+class gauss_beam : public source
+{
+private:
+    real m_z;
+    real m_z_0;
+    real m_lamda;
+    real m_w_0;
+    int m_n;
+    int m_m;
+    
+    real hermite(real xy,int nm) const
+    {
+        real ret=2*xy;
+        real old=1;
+        if (nm==0) {
+            ret=1;
+        }
+        for (int i=1; i<nm; i++) {
+            real inter=2*xy*ret-2*i*old;
+            old = ret;
+            ret = inter;
+        }
+        
+        return ret;
+    }
+public:
+    gauss_beam(const std::string& name, real *position, type source_type, real *pol,
+               real ampl, real freq, real phase, real min_width,
+               int mode_n = 1, int mode_m = 1, real z = 1) :
+    source(name, position, source_type, pol, ampl, freq, phase), m_w_0(min_width),
+    m_n(mode_n), m_m(mode_m), m_z(z)
+    {
+        m_lamda = 299792458 / m_freq; // / std::sqrt(mu_r*eps_r);
+        //        m_w_0 = std::sqrt(m_lamda * m_z_0 / M_PI);
+        m_z_0 = M_PI * pow(m_w_0,2)/m_lamda;
+        
+    }
+    real calc_value(real t, unsigned int dim_num, real y_p, real z_p) const
+    {
+        complex ret;
+        complex i = complex(0.0,1.0);//sqrt(-1);
+        real y = y_p - m_position[1];
+        real z = z_p - m_position[2];
+        
+        real m_w = m_w_0 * std::sqrt(1+pow(m_z/m_z_0,2));
+        real m_zeta = std::atan(m_z/m_z_0);
+        real m_R = m_z * (1+pow(m_z_0/m_z,2));
+        real m_k = 2 * M_PI/m_lamda;
+        
+        ret = m_ampl * m_w_0/m_w * hermite(M_SQRT2*y/m_w,m_n)
+        * hermite(M_SQRT2*z/m_w,m_m)
+        * std::exp(-(pow(y,2)+pow(z,2))/pow(m_w,2))
+        * std::exp(- i*m_k*(pow(y,2) + pow(z,2))/(2*m_R))
+        * std::exp(- i * m_k * m_z)
+        * std::exp(i * ((real)(m_n+m_m+1)) * m_zeta)
+        * 1.0/std::cosh(2e14 * t - m_phase)
+        *  sin(2 * M_PI * m_freq * t);
+        //        std::exp(i* m_k * mbsolve::C * t);
+        //        std::cout << ret << "; ";
+        return (m_pol[dim_num]*ret).real();
+    }
+};
+    
+class gauss_pulse : public source
+{
+private:
+    real m_sigma;
+    real m_phase_sin;
+public:
+    gauss_pulse(const std::string& name, real *position,
+                type source_type, real *pol,
+                real ampl, real freq,
+                real phase,
+                real sigma, real phase_sin = 0.0) :
+    source(name, position, source_type, pol, ampl, freq, phase), m_sigma(sigma),
+    m_phase_sin(phase_sin)
+    {
+    }
+    real calc_value(real t, unsigned int dim_num, real y_p, real z_p) const
+    {
+        return m_pol[dim_num]*exp( pow(((t - m_phase) /  m_sigma), 2)) *
+        sin(2 * M_PI * m_freq * t + m_phase_sin);
     }
 
 };
