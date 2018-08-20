@@ -39,17 +39,18 @@ class scenario
 {
 public:
     enum dm_init_type { random, lower_full, upper_full };
+    unsigned int m_dim;
 
 private:
     std::string m_name;
 
     unsigned int m_num_timesteps;
 
-    unsigned int m_num_gridpoints;
+    unsigned int *m_num_gridpoints;
 
     real m_timestep_size;
 
-    real m_gridpoint_size;
+    real *m_gridpoint_size;
 
     real m_endtime;
 
@@ -67,8 +68,8 @@ private:
 
 public:
 
-    scenario(const std::string& name, unsigned int num_gridpoints,
-             real endtime);
+    scenario(unsigned int dim, const std::string& name,
+             unsigned int *num_gridpoints, real endtime);
 
     void add_record(std::shared_ptr<record> rec);
 
@@ -84,17 +85,17 @@ public:
 
     void set_num_timesteps(unsigned int value);
 
-    unsigned int get_num_gridpoints() const;
+    unsigned int get_num_gridpoints(unsigned int dim_num = 0) const;
 
-    void set_num_gridpoints(unsigned int value);
+    void set_num_gridpoints(unsigned int value, unsigned int dim_num = 0);
 
     real get_timestep_size() const;
 
     void set_timestep_size(real value);
 
-    real get_gridpoint_size() const;
+    real get_gridpoint_size(unsigned int dim_num = 0) const;
 
-    void set_gridpoint_size(real value);
+    void set_gridpoint_size(real value, int dim_num);
 
     real get_endtime() const;
 

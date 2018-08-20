@@ -151,7 +151,7 @@ private:
     matrix_t m_h;
 
     /* dipole moment operator */
-    matrix_t m_u;
+    matrix_t *m_u;
 
     /* Lindblad superoperator */
     callback_t m_g;
@@ -161,9 +161,9 @@ private:
 
 public:
 
-    explicit qm_desc_clvl(real carrier_density,
+    explicit qm_desc_clvl(unsigned int dim, real carrier_density,
                           const matrix_t& hamiltonian,
-                          const matrix_t& dipole_op,
+                          matrix_t *dipole_op,
                           const callback_t& lindblad_op,
                           const matrix_t& d_init) :
         qm_description(carrier_density),
@@ -173,7 +173,9 @@ public:
 
     const matrix_t& get_hamiltonian() const { return m_h; }
 
-    const matrix_t& get_dipole_op() const { return m_u; }
+    const matrix_t& get_dipole_op(unsigned int dim_num = 0) const {
+        return m_u[dim_num];
+    }
 
     const callback_t& get_lindblad_op() const { return m_g; }
 

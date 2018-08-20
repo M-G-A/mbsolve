@@ -105,15 +105,30 @@ void init_fdtd_simulation(std::shared_ptr<const device> dev,
         /* speed of light (use smallest value of relative permittivities) */
         real velocity = 1.0/sqrt(MU0 * EPS0 * dev->get_minimum_permittivity());
 
-        /* get number of grid points */
-        unsigned int n_x = scen->get_num_gridpoints();
-
-        /* grid point size */
-        real d_x = dev->get_length()/(n_x - 1);
-        scen->set_gridpoint_size(d_x);
-
+        real d_x=0.0;
+        real d_x_sum = 0.0;
+        for (unsigned int dim_num=0; dim_num<scen->m_dim; dim_num++) {
+            /* get number of grid points */
+            unsigned int n_x = scen->get_num_gridpoints(dim_num);
+            /* grid point size */
+            if (n_x!=1){
+                d_x = dev->get_length(dim_num)/(n_x - 1);
+                
+                scen->set_gridpoint_size(d_x, dim_num);
+#if COURANT_2Norm == 0
+                d_x_sum += 1/d_x;
+#else
+                d_x_sum += 1/std::pow(d_x, 2);
+#endif
+            }
+        }
+        
         /* time step size */
-        real d_t = courant * d_x/velocity;
+#if COURANT_2Norm == 0
+        real d_t = courant / (velocity*d_x_sum);
+#else
+        real d_t = courant / (velocity*std::sqrt(d_x_sum));
+#endif
 
         /* number of time steps */
         unsigned int n_t = ceil(scen->get_endtime()/d_t) + 1;

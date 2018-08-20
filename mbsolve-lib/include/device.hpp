@@ -108,6 +108,8 @@ private:
     std::vector<std::shared_ptr<region> > m_regions;
 
     std::set<std::string> m_used_materials;
+    
+    real m_width;
 
     /* TODO: boundary conditions for fields */
     /* choices: periodic (ring cavity), PML, PMC (Fabry-Perot cavity) ... */
@@ -118,7 +120,7 @@ private:
 
 public:
 
-    device(const std::string& name);
+    device(const std::string& name, real width = 0);
 
     device(const std::string& file, const std::vector<material *>& materials);
 
@@ -147,7 +149,7 @@ public:
     /**
      * Get device length.
      */
-    real get_length() const;
+    real get_length(unsigned int dim_num = 0) const;
 
     /**
      * Get the minimum relative permittivity value.

@@ -23,7 +23,8 @@
 
 namespace mbsolve {
 
-device::device(const std::string& name) : m_name(name)
+device::device(const std::string& name, real width):
+    m_name(name),m_width(width)
 {
 }
 
@@ -54,11 +55,14 @@ device::get_used_materials() const
     return m_used_materials;
 }
 
-real
-device::get_length() const {
+real device::get_length(unsigned int dim_num) const {
     real total = 0.0;
     for (auto r : m_regions) {
         total += r->get_length();
+    }
+    /* device width and height - ToDo add extra-variable*/
+    if ((dim_num==1)||(dim_num==2)){
+        total=m_width;
     }
     return total;
 }

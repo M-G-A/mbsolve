@@ -23,11 +23,12 @@
 
 namespace mbsolve {
 
-scenario::scenario(const std::string& name, unsigned int num_gridpoints,
-                   real endtime) :
-    m_name(name), m_num_gridpoints(num_gridpoints), m_endtime(endtime),
-    m_dm_init_type(dm_init_type::lower_full)
+scenario::scenario(unsigned int dim, const std::string& name,
+                       unsigned int *num_gridpoints, real endtime) :
+    m_dim(dim), m_name(name), m_num_gridpoints(num_gridpoints),
+    m_endtime(endtime), m_dm_init_type(dm_init_type::lower_full)
 {
+    m_gridpoint_size = new real [dim];
 }
 
 void
@@ -73,15 +74,18 @@ scenario::set_num_timesteps(unsigned int value)
 }
 
 unsigned int
-scenario::get_num_gridpoints() const
+scenario::get_num_gridpoints(unsigned int dim_num) const
 {
-    return m_num_gridpoints;
+    if (dim_num>m_dim-1) {
+        return 1;
+    }
+    return m_num_gridpoints[dim_num];
 }
 
 void
-scenario::set_num_gridpoints(unsigned int value)
+scenario::set_num_gridpoints(unsigned int value, unsigned int dim_num)
 {
-    m_num_gridpoints = value;
+    m_num_gridpoints[dim_num] = value;
 }
 
 real
@@ -97,15 +101,15 @@ scenario::set_timestep_size(real value)
 }
 
 real
-scenario::get_gridpoint_size() const
+scenario::get_gridpoint_size(unsigned int dim_num) const
 {
-    return m_gridpoint_size;
+    return m_gridpoint_size[dim_num];
 }
 
 void
-scenario::set_gridpoint_size(real value)
+scenario::set_gridpoint_size(real value, int dim_num)
 {
-    m_gridpoint_size = value;
+    m_gridpoint_size[dim_num] = value;
 }
 
 real

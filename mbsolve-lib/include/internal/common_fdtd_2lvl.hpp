@@ -21,6 +21,8 @@
 
 #ifndef MBSOLVE_COMMON_FDTD_2LVL
 #define MBSOLVE_COMMON_FDTD_2LVL
+/* choose if the squared Courant condition should be used */
+#define COURANT_2Norm 0
 
 #include <memory>
 #include <Eigen/Core>
