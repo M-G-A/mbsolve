@@ -464,6 +464,33 @@ solver_openmp_clvl_os_red<num_lvl, dim>::solver_openmp_clvl_os_red
             m_mat_indices[tid] = (unsigned int *)
                 mb_aligned_alloc((chunk + 2 * OL) * sizeof(unsigned int));
         }
+        
+#if ABSORBING_BOUNDARY == 1
+        m_e_0 = (real *) mb_aligned_alloc(4 *
+                                          grid.num[1] * grid.num[2] * sizeof(real));
+        m_e_L = (real *) mb_aligned_alloc(4 *
+                                          grid.num[1] * grid.num[2] * sizeof(real));
+        
+        for (unsigned int i=0; i<4; i++) {
+            for (unsigned int y=0; y<grid.num[1]; y++) {
+                for (unsigned int z=0; z<grid.num[2]; z++) {
+                    m_e_0[grid.ind[i][y][z]] = 0;
+                    m_e_L[grid.ind[i][y][z]] = 0;
+                }
+            }
+        }
+        real dt = m_scenario->get_timestep_size();
+        real dx = m_scenario->get_gridpoint_size(0);
+        real dy = m_scenario->get_gridpoint_size(1);
+        m_s[0] = (mbsolve::C*dt-dx)/(mbsolve::C*dt+dx);
+        m_s[1] = 2*dx/(mbsolve::C*dt+dx);
+        m_s[2] = pow(mbsolve::C*dt,2)*dx/(2*dy*dy*(mbsolve::C*dt+dx));
+        
+        m_s[3] = (mbsolve::C*dt+dx)/(mbsolve::C*dt-dx);
+        m_s[4] = 2*dx/(-mbsolve::C*dt+dx);
+        m_s[5] = pow(mbsolve::C*dt,2)*dx/(2*dy*dy*(-mbsolve::C*dt+dx));
+        
+#endif
 
 #pragma omp parallel
         {
@@ -820,6 +847,34 @@ apply_sources(Eigen::Matrix<real, dim, 1> *t_e, real *source_data,
         }
     }
 }
+    
+    
+#if ABSORBING_BOUNDARY == 1
+    /* absorbing boundary of slavcheva. t_e_b stores the old values */
+    template<unsigned int dim>
+    void
+    apply_boundary(Eigen::Matrix<real, dim, 1> *t_e, real *t_e_b, sim_grid grid, const real *m_s, bool end){
+        
+        real temp;
+        for (unsigned int y=1; y<grid.num[1]-1; y++) {
+            for (unsigned int z=1; z<grid.num[2]-1; z++) {
+                temp = t_e[grid.ind[0][y][z]][0];
+                t_e[grid.ind[0][y][z]][0]=-t_e_b[grid.ind[3][y][z]]
+                + m_s[3*end+0]*(t_e[grid.ind[1][y][z]][0]+t_e_b[grid.ind[2][y][z]])
+                + m_s[3*end+1]*(t_e_b[grid.ind[0][y][z]]+t_e_b[grid.ind[1][y][z]])
+                + m_s[3*end+2]*(t_e_b[grid.ind[0][y+1][z]] + t_e_b[grid.ind[0][y-1][z]]
+                                - 2*t_e_b[grid.ind[0][y][z]] - 2*t_e_b[grid.ind[1][y][z]]
+                                + t_e_b[grid.ind[1][y+1][z]] + t_e_b[grid.ind[1][y-1][z]]);
+                
+                t_e_b[grid.ind[2][y][z]] = t_e_b[grid.ind[0][y][z]];
+                t_e_b[grid.ind[3][y][z]] = t_e_b[grid.ind[1][y][z]];
+                t_e_b[grid.ind[0][y][z]] = temp;
+                t_e_b[grid.ind[1][y][z]] = t_e[grid.ind[1][y][z]][0];
+            }
+            
+        }
+    }
+#endif
 
 complex mexp(const complex& arg)
 {
@@ -1109,11 +1164,22 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
                                   l_sim_sources, n * OL + m, tid * chunk_base,
                                   chunk, grid, num_timesteps);
                     
+#if ABSORBING_BOUNDARY == 1
+                    /* apply field boundary condition */
+                    if (tid == 0) {
+                        apply_boundary<dim>(&t_e[grid.ind[OL][0][0]], m_e_0, grid, m_s, 0);
+                    }
+                    if (tid == P - 1) {
+                        apply_boundary<dim>(&t_e[grid.ind[OL + chunk - 1][0][0]], m_e_L, grid, m_s, 1);
+                    }
+#endif
+                    
                     update_h<num_lvl, num_adj, dim>(size, border, t_e, t_p, t_h,
                                                     t_d, t_mat_indices,
                                                     l_sim_consts, grid);
 
-                    /* apply field boundary condition */
+#if ABSORBING_BOUNDARY == 0
+                    /* mirror: symmetric boundary */
                     if (tid == 0) {
                         for (unsigned int y=0; y<grid.num[1]; y++) {
                             for (unsigned int z=0; z<grid.num[2]; z++) {
@@ -1139,7 +1205,8 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
                             }
                         }
                     }
-
+#endif
+                    
                      /* save results to scratchpad in parallel */
                     for (int k = 0; k < num_copy; k++) {
                         if (l_copy_list[k].hasto_record(n * OL + m)) {
