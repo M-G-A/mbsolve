@@ -31,8 +31,12 @@
 
 namespace mbsolve {
 
-static solver_factory<solver_openmp_clvl_os_red<2> > f2("openmp-2lvl-os-red");
-static solver_factory<solver_openmp_clvl_os_red<3> > f3("openmp-3lvl-os-red");
+static solver_factory<solver_openmp_clvl_os_red<2,1> > f2("openmp-2lvl-os-red");
+static solver_factory<solver_openmp_clvl_os_red<2,2> > f2_2("openmp-2lvl-os-red-2d");
+static solver_factory<solver_openmp_clvl_os_red<2,3> > f2_3("openmp-2lvl-os-red-3d");
+static solver_factory<solver_openmp_clvl_os_red<3,1> > f3("openmp-3lvl-os-red");
+static solver_factory<solver_openmp_clvl_os_red<3,2> > f3_2("openmp-3lvl-os-red-2d");
+static solver_factory<solver_openmp_clvl_os_red<3,3> > f3_3("openmp-3lvl-os-red-3d");
 
 /* redundant calculation overlap */
 #ifdef XEON_PHI_OFFLOAD
