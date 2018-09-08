@@ -1319,7 +1319,6 @@ solver_openmp_clvl_os_red<num_lvl, dim>::run() const
                         }
                     }
                     if (tid == P - 1) {
-                        t_h[OL + chunk] = 0;
                         for (unsigned int y=0; y<grid.num[1]; y++) {
                             for (unsigned int z=0; z<grid.num[2]; z++) {
                                 if (dim==3){
