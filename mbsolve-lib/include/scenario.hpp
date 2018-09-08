@@ -104,6 +104,8 @@ public:
     dm_init_type get_dm_init_type() const;
 
     void set_dm_init_type(dm_init_type type);
+    
+    unsigned int get_num_records() const;
 
 };
 
